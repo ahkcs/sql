@@ -476,7 +476,11 @@ ext {
 
         int totalFailed = totalFailures + totalErrors
         int totalPassed = totalTests - totalFailed - totalSkipped
-        double passPct = totalTests == 0 ? 0.0 : (100.0 * totalPassed / totalTests)
+        // Pass rate is reported over executed (passed + failed) tests, deliberately excluding
+        // skipped. Skipped tests don't tell us anything about analytics-engine compatibility —
+        // counting them in the denominator would dilute the signal we're after.
+        int totalExecuted = totalPassed + totalFailed
+        double passPct = totalExecuted == 0 ? 0.0 : (100.0 * totalPassed / totalExecuted)
 
         def sb = new StringBuilder()
         sb << "# Analytics-engine ${label} IT Compatibility Report\n\n"
@@ -493,7 +497,7 @@ ext {
         sb << "| Failed | ${totalFailures} |\n"
         sb << "| Errored | ${totalErrors} |\n"
         sb << "| Skipped | ${totalSkipped} |\n"
-        sb << "| Pass rate | **${String.format('%.1f', passPct)}%** |\n"
+        sb << "| Pass rate (passed / (passed + failed)) | **${String.format('%.1f', passPct)}%** |\n"
         sb << "| Total time | ${String.format('%.1f', totalTimeMs / 1000.0)}s |\n\n"
 
         int TOP_BUCKETS = 25
@@ -571,8 +575,10 @@ ext {
         perClassActive.sort { a, b ->
             int[] ca = a[1], cb = b[1]
             int pa = ca[0] - ca[1] - ca[2], pb = cb[0] - cb[1] - cb[2]
-            double pctA = ca[0] == 0 ? 0.0 : (100.0 * pa / ca[0])
-            double pctB = cb[0] == 0 ? 0.0 : (100.0 * pb / cb[0])
+            // Match the top-level pass rate: divide by executed (passed + failed), not total.
+            int eaA = pa + ca[1], eaB = pb + cb[1]
+            double pctA = eaA == 0 ? 0.0 : (100.0 * pa / eaA)
+            double pctB = eaB == 0 ? 0.0 : (100.0 * pb / eaB)
             pctB <=> pctA ?: cb[0] <=> ca[0]
         }
         sb << "## Per-class pass-rate highlights\n\n"
@@ -592,7 +598,9 @@ ext {
                     partial.take(8).collect { row ->
                         int[] c = row[1]
                         int t = c[0], f = c[1], s = c[2], p = t - f - s
-                        int pct = t == 0 ? 0 : (int) Math.round(100.0 * p / t)
+                        // Denominator excludes skipped to match the top-level pass-rate.
+                        int e = p + f
+                        int pct = e == 0 ? 0 : (int) Math.round(100.0 * p / e)
                         "${row[0].toString().replaceFirst(/^.*\./, '')} ${pct}%"
                     }.join(', ') + "\n"
         }
@@ -601,8 +609,9 @@ ext {
 
         reportFile.text = sb.toString()
         logger.lifecycle("[${logTag}] Wrote ${reportFile}")
-        logger.lifecycle("[${logTag}] ${totalPassed}/${totalTests} passed " +
-                "(${String.format('%.1f', passPct)}%), ${totalFailed} failed, ${totalSkipped} skipped")
+        logger.lifecycle("[${logTag}] ${totalPassed}/${totalExecuted} passed " +
+                "(${String.format('%.1f', passPct)}%, excludes skipped), " +
+                "${totalFailed} failed, ${totalSkipped} skipped, ${totalTests} total")
     }
 }
 
