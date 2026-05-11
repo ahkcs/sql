@@ -1071,3 +1071,312 @@ task integTestRemote(type: RestIntegTestTask) {
     exclude 'org/opensearch/sql/legacy/OrderIT.class'
     exclude 'org/opensearch/sql/jdbc/**'
 }
+
+// =============================================================================
+// Analytics-engine PPL IT compatibility report
+//
+// Runs every PPL IT through the analytics-engine path against an externally-
+// managed cluster (started with the analytics-engine plugin set installed),
+// then post-processes the JUnit XMLs into a markdown coverage report bucketed
+// by exception type and normalized error message.
+//
+// End-to-end usage:
+//
+//   1. Start an OpenSearch node with the analytics-engine plugin set
+//      installed and the SQL plugin built locally.
+//
+//   2. Run:
+//        ./gradlew :integ-test:analyticsCompatibilityReport \
+//            -Dtests.rest.cluster=localhost:9200 \
+//            -Dtests.cluster=localhost:9300 \
+//            -Dtests.clustername=runTask
+//
+//   3. Read the report at:
+//        integ-test/build/reports/analytics-compatibility/REPORT.md
+//
+// The test task always succeeds (`ignoreFailures = true`) so the report is
+// produced even when the analytics path can't yet handle a command — failures
+// are the signal we're after, not a build break.
+//
+// How the test-side hook works (PPLIntegTestCase.java):
+//   - The test task sets `-Dtests.analytics.force_routing=true`.
+//   - PPLIntegTestCase.init() reads that property and calls
+//     enableAnalyticsForceRouting() during setup, which flips the cluster
+//     setting plugins.calcite.analytics.force_routing=true.
+//   - RestUnifiedQueryAction.isAnalyticsIndex() honors that setting and
+//     returns true unconditionally — so every query routes through the
+//     analytics-engine planner regardless of index name.
+// =============================================================================
+task analyticsCompatibilityTest(type: RestIntegTestTask) {
+    description = "Runs all PPL ITs through the analytics-engine path. Always succeeds; results " +
+            "are post-processed by analyticsCompatibilityReport."
+    group = "verification"
+
+    testLogging {
+        events "skipped", "failed"
+        exceptionFormat "short"
+    }
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    systemProperty 'tests.security.manager', 'false'
+    systemProperty 'project.root', project.projectDir.absolutePath
+    systemProperty 'java.io.tmpdir', opensearch_tmp_dir.absolutePath
+    systemProperty 'defaultQuerySizeLimit', '10000'
+
+    // Force every PPL query through the analytics-engine path. Picked up by
+    // PPLIntegTestCase.init() via the ANALYTICS_FORCE_ROUTING_PROP constant.
+    systemProperty 'tests.analytics.force_routing', 'true'
+
+    systemProperty "https", System.getProperty("https")
+    systemProperty "user", System.getProperty("user")
+    systemProperty "password", System.getProperty("password")
+
+    // Don't fail the build on test failures — failures are the report payload.
+    ignoreFailures = true
+
+    reports {
+        junitXml.required.set(true)
+        junitXml.outputLocation.set(file("$buildDir/test-results/analyticsCompatibility"))
+        html.required.set(true)
+        html.outputLocation.set(file("$buildDir/reports/tests/analyticsCompatibility"))
+    }
+
+    // PPL ITs only: both the calcite remote suite and the legacy ppl/ package.
+    filter {
+        includeTestsMatching "org.opensearch.sql.calcite.remote.*IT"
+        includeTestsMatching "org.opensearch.sql.ppl.*IT"
+    }
+
+    // BWC, correctness, doctest and legacy oddballs aren't in scope for the analytics report.
+    exclude 'org/opensearch/sql/bwc/**'
+    exclude 'org/opensearch/sql/doctest/**/*IT.class'
+    exclude 'org/opensearch/sql/correctness/**'
+    exclude 'org/opensearch/sql/jdbc/**'
+    exclude 'org/opensearch/sql/security/**'
+
+    // The test task hits whatever cluster `-Dtests.rest.cluster=...` points at; no testClusters
+    // dependency. Only run if the user supplied a cluster.
+    onlyIf {
+        if (System.getProperty("tests.rest.cluster") == null) {
+            logger.lifecycle(
+                    "[analyticsCompatibility] Skipping: pass -Dtests.rest.cluster=<host:port> " +
+                            "(and optionally -Dtests.cluster=, -Dtests.clustername=) pointing at " +
+                            "an externally-running cluster with the analytics-engine plugin set installed.")
+            return false
+        }
+        return true
+    }
+}
+
+task analyticsCompatibilityReport {
+    description = "Generates a markdown coverage report classifying analyticsCompatibilityTest " +
+            "failures by exception type, with messages normalized so per-index/per-field " +
+            "variations collapse into a single bucket."
+    group = "verification"
+    dependsOn analyticsCompatibilityTest
+
+    def xmlDir = file("$buildDir/test-results/analyticsCompatibility")
+    def reportDir = file("$buildDir/reports/analytics-compatibility")
+    def reportFile = file("$reportDir/REPORT.md")
+
+    // No inputs/outputs declared on purpose: the upstream test task is gated on
+    // -Dtests.rest.cluster and may produce no XMLs. Up-to-date checks would
+    // suppress the "no results" log line we want users to see.
+    doLast {
+        if (!xmlDir.exists()) {
+            logger.lifecycle("[analyticsCompatibilityReport] No test results at ${xmlDir}; nothing to report.")
+            return
+        }
+        reportDir.mkdirs()
+
+        // Collapse variable text so similar errors land in one bucket. E.g.
+        //   "No backend can scan all requested fields on index [opensearch-sql_test_index_bank]"
+        //   "No backend can scan all requested fields on index [opensearch-sql_test_index_account]"
+        // both normalize to:
+        //   "No backend can scan all requested fields on index [<INDEX>]"
+        Closure normalize = { String s ->
+            if (s == null) return ''
+            String n = s
+            n = n.replaceAll(/(?i)on index \[[^\]]+\]/, 'on index [<INDEX>]')
+            n = n.replaceAll(/(?i)index \[[^\]]+\]/, 'index [<INDEX>]')
+            n = n.replaceAll(/Field \[[^\]]+\]/, 'Field [<FIELD>]')
+            n = n.replaceAll(/Field '[^']+'/, "Field '<FIELD>'")
+            n = n.replaceAll(/Table '[^']+'/, "Table '<TABLE>'")
+            n = n.replaceAll(/Line \d+, Column \d+/, 'Line <L>, Column <C>')
+            return n
+        }
+
+        def parser = new groovy.xml.XmlParser(false, false)
+        int totalTests = 0
+        int totalFailures = 0
+        int totalErrors = 0
+        int totalSkipped = 0
+        long totalTimeMs = 0
+        // Bucket: "<ExcLabel> | <normalized message>" -> [list of "Class.method"]
+        def buckets = new java.util.LinkedHashMap<String, java.util.List<String>>()
+        // Per-class summary: className -> [tests, failures+errors, skipped]
+        def perClass = new java.util.TreeMap<String, int[]>()
+
+        xmlDir.eachFileMatch(~/TEST-.*\.xml/) { xmlFile ->
+            def root
+            try {
+                root = parser.parse(xmlFile)
+            } catch (Exception e) {
+                logger.warn("[analyticsCompatibilityReport] Failed to parse ${xmlFile.name}: ${e.message}")
+                return
+            }
+            def className = root.@name?.toString() ?: xmlFile.name
+            int classTests = (root.@tests ?: '0').toString().toInteger()
+            int classFailures = (root.@failures ?: '0').toString().toInteger()
+            int classErrors = (root.@errors ?: '0').toString().toInteger()
+            int classSkipped = (root.@skipped ?: '0').toString().toInteger()
+            double classTime = ((root.@time ?: '0') as String).replace(',', '.').toDouble()
+
+            totalTests += classTests
+            totalFailures += classFailures
+            totalErrors += classErrors
+            totalSkipped += classSkipped
+            totalTimeMs += (long) (classTime * 1000)
+            perClass[className] = [classTests, classFailures + classErrors, classSkipped] as int[]
+
+            root.testcase.each { tc ->
+                def testName = tc.@name?.toString() ?: '<unknown>'
+                def fqid = "${className}#${testName}"
+                def failureNode = tc.failure ? tc.failure[0] : (tc.error ? tc.error[0] : null)
+                if (failureNode == null) return
+
+                def excType = failureNode.@type?.toString() ?: '<unknown>'
+                def msg = failureNode.@message?.toString() ?: ''
+                def body = failureNode.text() ?: ''
+
+                // ResponseException collapses every 500/4xx into one bucket because its message
+                // starts with the same wrapper text. Reach into the response body and extract the
+                // server's actual exception class + reason — that's what we actually want to bucket
+                // on. Same for AssertionError that wraps a ResponseException stacktrace.
+                def excLabel = excType
+                def primary = msg
+                def innerType = (msg =~ /"type"\s*:\s*"([^"]+)"/)
+                def innerReason = (msg =~ /"reason"\s*:\s*"([^"]+)"/)
+                if (excType.endsWith('ResponseException') || excType.endsWith('AssertionError')) {
+                    if (innerType.find()) {
+                        excLabel = "${excType} → ${innerType.group(1)}"
+                    }
+                    innerReason.reset()
+                    if (innerReason.find()) primary = innerReason.group(1)
+                }
+
+                if (primary == null || primary.trim().isEmpty()) {
+                    primary = body.split(/\r?\n/).find { it != null && !it.trim().isEmpty() } ?: ''
+                }
+                primary = primary.replace('\n', ' ').replace('\r', ' ').trim()
+
+                String normalized = normalize(primary)
+                if (normalized.length() > 200) normalized = normalized.substring(0, 200) + '…'
+
+                def key = "${excLabel} | ${normalized}".toString()
+                buckets.computeIfAbsent(key, { new java.util.ArrayList<String>() }).add(fqid)
+            }
+        }
+
+        int totalFailed = totalFailures + totalErrors
+        int totalPassed = totalTests - totalFailed - totalSkipped
+        double passPct = totalTests == 0 ? 0.0 : (100.0 * totalPassed / totalTests)
+
+        def sb = new StringBuilder()
+        sb << "# Analytics-engine PPL IT Compatibility Report\n\n"
+        sb << "Generated: ${new Date()}\n\n"
+        sb << "Cluster under test: `${System.getProperty('tests.rest.cluster') ?: '<unspecified>'}`\n\n"
+        sb << "Routing: every PPL query forced through the analytics-engine path " +
+                "(`tests.analytics.force_routing=true`, which sets the cluster setting " +
+                "`plugins.calcite.analytics.force_routing=true`).\n\n"
+        sb << "## Summary\n\n"
+        sb << "| Metric | Count |\n"
+        sb << "|---|---|\n"
+        sb << "| Tests executed | ${totalTests} |\n"
+        sb << "| Passed | ${totalPassed} |\n"
+        sb << "| Failed | ${totalFailures} |\n"
+        sb << "| Errored | ${totalErrors} |\n"
+        sb << "| Skipped | ${totalSkipped} |\n"
+        sb << "| Pass rate | **${String.format('%.1f', passPct)}%** |\n"
+        sb << "| Total time | ${String.format('%.1f', totalTimeMs / 1000.0)}s |\n\n"
+
+        int TOP_BUCKETS = 25
+        Closure cell = { String s ->
+            (s ?: '').replace('|', '/').replace('\n', ' ').replace('\r', ' ').trim()
+        }
+        Closure clip = { String s, int n -> s.length() > n ? s.substring(0, n - 1) + '…' : s }
+
+        def sortedBuckets = buckets.isEmpty() ? [] : buckets.entrySet().toList().sort { -it.value.size() }
+        int totalFailedAll = (int) sortedBuckets.sum(0) { it.value.size() }
+        int remainingBuckets = Math.max(0, sortedBuckets.size() - TOP_BUCKETS)
+        int remainingFails = remainingBuckets == 0 ? 0 :
+                (int) sortedBuckets.drop(TOP_BUCKETS).sum(0) { it.value.size() }
+
+        sb << "## Top ${Math.min(TOP_BUCKETS, sortedBuckets.size())} failure buckets\n\n"
+        sb << "Cells are clipped to keep table renderers from line-wrapping. The full uncut messages live in `integ-test/build/test-results/analyticsCompatibility/`.\n\n"
+        if (sortedBuckets.isEmpty()) {
+            sb << "_No failures._\n\n"
+        } else {
+            sb << "| # | Count | Error |\n"
+            sb << "|---:|---:|---|\n"
+            int idx = 0
+            sortedBuckets.take(TOP_BUCKETS).each { entry ->
+                idx++
+                def parts = entry.key.split(/ \| /, 2)
+                def excType = parts.length > 0 ? parts[0] : '<unknown>'
+                def msg = parts.length > 1 ? parts[1] : ''
+                def shortExc = excType.replaceFirst(/^.*?(ResponseException|AssertionError) → /, '')
+                shortExc = shortExc.replaceFirst(/^java\.lang\./, '').replaceFirst(/^org\.opensearch\.[^ ]*\./, '')
+                def combined = "${shortExc} — ${msg}"
+                sb << "| ${idx} | ${entry.value.size()} | ${cell(clip(combined, 90))} |\n"
+            }
+            if (remainingBuckets > 0) {
+                sb << "\n_${remainingBuckets} more buckets cover the remaining ${remainingFails} failures (long tail, each ≤${sortedBuckets.get(TOP_BUCKETS).value.size()} tests)._\n\n"
+            }
+        }
+
+        // ---- Per-class summary ------------------------------------------
+        def perClassActive = []
+        int perClassZeroCount = 0
+        perClass.each { className, counts ->
+            int t = counts[0], f = counts[1], s = counts[2]
+            if (s > 0 || (t - f - s) > 0) perClassActive.add([className, counts])
+            else perClassZeroCount++
+        }
+        perClassActive.sort { a, b ->
+            int[] ca = a[1], cb = b[1]
+            int pa = ca[0] - ca[1] - ca[2], pb = cb[0] - cb[1] - cb[2]
+            double pctA = ca[0] == 0 ? 0.0 : (100.0 * pa / ca[0])
+            double pctB = cb[0] == 0 ? 0.0 : (100.0 * pb / cb[0])
+            pctB <=> pctA ?: cb[0] <=> ca[0]
+        }
+        sb << "## Per-class pass-rate highlights\n\n"
+        sb << "Of ${perClass.size()} PPL IT classes:\n\n"
+        def fullyPassing = perClassActive.findAll { row ->
+            int[] c = row[1]; int t = c[0], f = c[1], s = c[2]
+            t > 0 && f == 0 && s == 0
+        }
+        sb << "- **${fullyPassing.size()} pass 100%** — ${fullyPassing.collect { it[0].toString().replaceFirst(/^.*\./, '') }.join(', ')}\n"
+        def partial = perClassActive.findAll { row ->
+            int[] c = row[1]; int t = c[0], f = c[1], s = c[2]
+            int p = t - f - s
+            t > 0 && p > 0 && p < t
+        }
+        if (!partial.isEmpty()) {
+            sb << "- **${partial.size()} partially pass** (≥1 passing test). Top by pass-rate: " +
+                    partial.take(8).collect { row ->
+                        int[] c = row[1]
+                        int t = c[0], f = c[1], s = c[2], p = t - f - s
+                        int pct = t == 0 ? 0 : (int) Math.round(100.0 * p / t)
+                        "${row[0].toString().replaceFirst(/^.*\./, '')} ${pct}%"
+                    }.join(', ') + "\n"
+        }
+        sb << "- **${perClassZeroCount} fail every test.** Full per-class breakdown is in the JUnit HTML report at `integ-test/build/reports/tests/analyticsCompatibility/index.html`.\n"
+        sb << "\n"
+
+        reportFile.text = sb.toString()
+        logger.lifecycle("[analyticsCompatibilityReport] Wrote ${reportFile}")
+        logger.lifecycle("[analyticsCompatibilityReport] ${totalPassed}/${totalTests} passed " +
+                "(${String.format('%.1f', passPct)}%), ${totalFailed} failed, ${totalSkipped} skipped")
+    }
+}
