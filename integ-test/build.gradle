@@ -1171,13 +1171,30 @@ task analyticsCompatibilityTest(type: RestIntegTestTask) {
 task analyticsCompatibilityReport {
     description = "Generates a markdown coverage report classifying analyticsCompatibilityTest " +
             "failures by exception type, with messages normalized so per-index/per-field " +
-            "variations collapse into a single bucket."
+            "variations collapse into a single bucket. Each bucket is annotated with an Origin " +
+            "(SQL plugin / analytics engine / Calcite library / OpenSearch / Test) recovered from " +
+            "the cluster log's first server-side stack frame."
     group = "verification"
     dependsOn analyticsCompatibilityTest
 
     def xmlDir = file("$buildDir/test-results/analyticsCompatibility")
     def reportDir = file("$buildDir/reports/analytics-compatibility")
     def reportFile = file("$reportDir/REPORT.md")
+    // Cluster log path. The cluster's testcluster log is the only source of server-side stack
+    // traces — the SQL plugin's REST formatter only sends `type` + `reason` + `details` to the
+    // client, never the throw-site frame. We need the frame to classify whether a failure is
+    // from our SQL plugin's Calcite layer, the analytics-engine, the Calcite library itself, or
+    // OpenSearch core. Override with -PclusterLog=/abs/path/to/cluster.log.
+    //
+    // Probes both common locations: the SQL plugin's own integTest-0 cluster (used when
+    // `:opensearch-sql-plugin:run` brings the cluster up locally), and OpenSearch's runTask-0
+    // cluster (used when the OpenSearch repo brings the cluster up).
+    def clusterLog = project.findProperty('clusterLog') ?: {
+        ['plugin/build/testclusters/integTest-0/logs/integTest.log',
+         '../OpenSearch/build/testclusters/runTask-0/logs/runTask.log'].collect {
+            file("${rootDir}/${it}")
+        }.find { it.exists() }?.absolutePath
+    }()
 
     // No inputs/outputs declared on purpose: the upstream test task is gated on
     // -Dtests.rest.cluster and may produce no XMLs. Up-to-date checks would
@@ -1206,6 +1223,87 @@ task analyticsCompatibilityReport {
             return n
         }
 
+        // Map a top stack frame's package prefix to a short origin label.
+        // Order matters: most-specific prefix first.
+        Closure originFromFrame = { String fqClassMethod ->
+            if (fqClassMethod == null || fqClassMethod.isEmpty()) return '?'
+            String f = fqClassMethod
+            if (f.startsWith('org.opensearch.sql.calcite.')) return 'SQL/calcite'
+            if (f.startsWith('org.opensearch.sql.')) return 'SQL/other'
+            if (f.startsWith('org.opensearch.analytics.')) return 'AE'
+            if (f.startsWith('org.opensearch.parquet.') ||
+                f.startsWith('org.opensearch.composite.') ||
+                f.startsWith('org.opensearch.dsl.')) return 'AE/plugin'
+            if (f.startsWith('org.apache.calcite.')) return 'Calcite'
+            if (f.startsWith('org.opensearch.')) return 'OpenSearch'
+            if (f.startsWith('java.') || f.startsWith('jdk.') || f.startsWith('sun.')) return 'JDK'
+            return '?'
+        }
+
+        // Cluster-log scan: walk every exception block to recover (cause class, normalized
+        // message, top server-side stack frame). REST-side failure messages don't carry the
+        // throw frame because the SQL response formatter only emits {type, reason, details};
+        // we recover the frame from the cluster log here.
+        //
+        // Match BOTH styles a server-side exception can appear in the log:
+        //   (a) "Caused by: <fq.exc>: <msg>"     — when wrapped (e.g. by UnifiedQueryPlanner)
+        //   (b) "<fq.exc>: <msg>"                 — top-level dumps from log4j (no wrapper)
+        // For each, the next "    at <fq.class>.<method>(..." line is the throw frame we want.
+        //
+        // Map: "<simpleExc> | <normalized message>" -> top stack frame "fq.Class.method".
+        // First match wins per signature (any ambiguity surfaces in the report's '?' rows).
+        Map<String, String> sigToTopFrame = new java.util.LinkedHashMap<>()
+        if (clusterLog) {
+            File clusterLogFile = new File(clusterLog.toString())
+            if (clusterLogFile.exists()) {
+                String pendingSig = null
+                int pendingLines = 0
+                clusterLogFile.eachLine { String line ->
+                    // (a) Caused-by line.
+                    def causedBy = line =~ /^Caused by: ([\w\.\$]+(?:Exception|Error|Failure)): ?(.*)$/
+                    // (b) Top-level exception line — must contain at least one '.' in the FQ class
+                    //     to avoid false-matching prose. Restrict to lines starting with "java." /
+                    //     "org." / "com." / "io." / "net." / "javax." — covers all server-side
+                    //     stack roots without dragging in user-input text.
+                    def topLevel = line =~ /^((?:java|javax|jdk|sun|org|com|io|net)\.[\w\.\$]+(?:Exception|Error|Failure)): ?(.*)$/
+                    String fqExc = null
+                    String rawMsg = null
+                    if (causedBy.find()) {
+                        fqExc = causedBy.group(1)
+                        rawMsg = causedBy.group(2)
+                    } else if (topLevel.find()) {
+                        fqExc = topLevel.group(1)
+                        rawMsg = topLevel.group(2)
+                    }
+                    if (fqExc != null) {
+                        String simpleExc = fqExc.substring(fqExc.lastIndexOf('.') + 1)
+                        String normMsg = normalize(rawMsg)
+                        pendingSig = "${simpleExc} | ${normMsg}".toString()
+                        pendingLines = 0
+                        return
+                    }
+                    if (pendingSig == null) return
+                    // First "at <fq.class>.method(...)" frame after the exception line.
+                    def atFrame = line =~ /^\s+at ([\w\.\$]+)\.([\w<>\$]+)\(/
+                    if (atFrame.find()) {
+                        String topFrame = "${atFrame.group(1)}.${atFrame.group(2)}".toString()
+                        sigToTopFrame.putIfAbsent(pendingSig, topFrame)
+                        pendingSig = null
+                        return
+                    }
+                    if (++pendingLines > 30) {
+                        // Exception block ran on without a recognizable frame.
+                        pendingSig = null
+                    }
+                }
+                logger.lifecycle("[analyticsCompatibilityReport] Cluster log: ${sigToTopFrame.size()} unique cause signatures with stack frames recovered from ${clusterLogFile.absolutePath}.")
+            } else {
+                logger.lifecycle("[analyticsCompatibilityReport] Cluster log not found at ${clusterLog} — Origin column will mostly say '?'. Override with -PclusterLog=...")
+            }
+        } else {
+            logger.lifecycle("[analyticsCompatibilityReport] No cluster log path resolved — Origin column will mostly say '?'. Pass -PclusterLog=...")
+        }
+
         def parser = new groovy.xml.XmlParser(false, false)
         int totalTests = 0
         int totalFailures = 0
@@ -1214,6 +1312,8 @@ task analyticsCompatibilityReport {
         long totalTimeMs = 0
         // Bucket: "<ExcLabel> | <normalized message>" -> [list of "Class.method"]
         def buckets = new java.util.LinkedHashMap<String, java.util.List<String>>()
+        // Bucket key -> origin label resolved at bucket time so the table render is a lookup.
+        def bucketOrigin = new java.util.LinkedHashMap<String, String>()
         // Per-class summary: className -> [tests, failures+errors, skipped]
         def perClass = new java.util.TreeMap<String, int[]>()
 
@@ -1251,18 +1351,31 @@ task analyticsCompatibilityReport {
 
                 // ResponseException collapses every 500/4xx into one bucket because its message
                 // starts with the same wrapper text. Reach into the response body and extract the
-                // server's actual exception class + reason — that's what we actually want to bucket
-                // on. Same for AssertionError that wraps a ResponseException stacktrace.
+                // server's actual exception class + the message text. The SQL formatter ships the
+                // cause via three JSON fields:
+                //   type    — the inner exception's simple class name
+                //   reason  — typically the formatter's wrapper "There was internal problem at backend"
+                //   details — the actual exception message text we want to bucket on
+                // Same shape applies to AssertionError that wraps a ResponseException stack trace.
                 def excLabel = excType
+                def innerExcSimple = null
                 def primary = msg
                 def innerType = (msg =~ /"type"\s*:\s*"([^"]+)"/)
                 def innerReason = (msg =~ /"reason"\s*:\s*"([^"]+)"/)
+                def innerDetails = (msg =~ /"details"\s*:\s*"([^"]+)"/)
                 if (excType.endsWith('ResponseException') || excType.endsWith('AssertionError')) {
                     if (innerType.find()) {
-                        excLabel = "${excType} → ${innerType.group(1)}"
+                        innerExcSimple = innerType.group(1)
+                        excLabel = "${excType} → ${innerExcSimple}"
                     }
+                    String innerMsg = ''
                     innerReason.reset()
-                    if (innerReason.find()) primary = innerReason.group(1)
+                    innerDetails.reset()
+                    if (innerReason.find()) innerMsg = innerReason.group(1)
+                    // Prefer details when present — that's the actual cause text. Fall back to
+                    // reason (the wrapper string) only when details is missing.
+                    if (innerDetails.find()) innerMsg = innerDetails.group(1)
+                    if (!innerMsg.isEmpty()) primary = innerMsg
                 }
 
                 if (primary == null || primary.trim().isEmpty()) {
@@ -1275,6 +1388,32 @@ task analyticsCompatibilityReport {
 
                 def key = "${excLabel} | ${normalized}".toString()
                 buckets.computeIfAbsent(key, { new java.util.ArrayList<String>() }).add(fqid)
+
+                // Resolve origin once per bucket: match cluster-log signature
+                // "<innerExcSimple> | <normalized stripped of formatter prefix>" against the
+                // sigToTopFrame map. Buckets without a cluster-log match show '?'.
+                if (!bucketOrigin.containsKey(key)) {
+                    String simpleExc = innerExcSimple ?: excType
+                    String stripped = normalized
+                            .replaceFirst(/^There was internal problem at backend(: )?/, '')
+                    String sig = "${simpleExc} | ${stripped}".toString()
+                    String topFrame = sigToTopFrame.get(sig)
+                    if (topFrame == null) {
+                        // Some buckets (e.g. SemanticCheckException from pre-flight) don't go
+                        // through "Failed to plan query" wrapping but still come from our SQL
+                        // plugin. Fall back to classifying by exception class name origin.
+                        if (simpleExc in [
+                                'SemanticCheckException',
+                                'ExpressionEvaluationException',
+                                'SqlParseException']) {
+                            bucketOrigin[key] = 'SQL/preflight'
+                        } else {
+                            bucketOrigin[key] = '?'
+                        }
+                    } else {
+                        bucketOrigin[key] = originFromFrame(topFrame)
+                    }
+                }
             }
         }
 
@@ -1314,11 +1453,12 @@ task analyticsCompatibilityReport {
 
         sb << "## Top ${Math.min(TOP_BUCKETS, sortedBuckets.size())} failure buckets\n\n"
         sb << "Cells are clipped to keep table renderers from line-wrapping. The full uncut messages live in `integ-test/build/test-results/analyticsCompatibility/`.\n\n"
+        sb << "Origin column legend: `SQL/calcite` = our SQL plugin's Calcite visitors (`org.opensearch.sql.calcite.*`); `SQL/preflight` = our SQL plugin's parser/analyzer (raised before reaching the analytics-engine path); `SQL/other` = other SQL-plugin code; `AE` = analytics-engine plugin (`org.opensearch.analytics.*`); `AE/plugin` = analytics-engine sister plugins (parquet/composite/dsl); `Calcite` = the Apache Calcite library; `OpenSearch` = OpenSearch core; `Test` = test code (assertion failure, not a server error); `?` = no matching cluster-log frame found.\n\n"
         if (sortedBuckets.isEmpty()) {
             sb << "_No failures._\n\n"
         } else {
-            sb << "| # | Count | Error |\n"
-            sb << "|---:|---:|---|\n"
+            sb << "| # | Count | Origin | Error |\n"
+            sb << "|---:|---:|:--|---|\n"
             int idx = 0
             sortedBuckets.take(TOP_BUCKETS).each { entry ->
                 idx++
@@ -1328,11 +1468,44 @@ task analyticsCompatibilityReport {
                 def shortExc = excType.replaceFirst(/^.*?(ResponseException|AssertionError) → /, '')
                 shortExc = shortExc.replaceFirst(/^java\.lang\./, '').replaceFirst(/^org\.opensearch\.[^ ]*\./, '')
                 def combined = "${shortExc} — ${msg}"
-                sb << "| ${idx} | ${entry.value.size()} | ${cell(clip(combined, 90))} |\n"
+                String origin = bucketOrigin.get(entry.key) ?: '?'
+                // ComparisonFailure / AssertionError without an inner ResponseException are
+                // pure test-side assertion failures — classify regardless of cluster log.
+                if (origin == '?' && (excType.endsWith('ComparisonFailure') || excType == 'java.lang.AssertionError' || excType == 'AssertionError')) {
+                    origin = 'Test'
+                }
+                sb << "| ${idx} | ${entry.value.size()} | ${origin} | ${cell(clip(combined, 80))} |\n"
             }
             if (remainingBuckets > 0) {
                 sb << "\n_${remainingBuckets} more buckets cover the remaining ${remainingFails} failures (long tail, each ≤${sortedBuckets.get(TOP_BUCKETS).value.size()} tests)._\n\n"
             }
+        }
+
+        // ---- Origin rollup (failures grouped by origin) -----------------
+        // Aggregate failure counts per origin so triagers can see at a glance which side
+        // dominates. Mirrors the per-bucket Origin classification, applied to ALL buckets
+        // (not just the top 25 shown above).
+        if (!sortedBuckets.isEmpty()) {
+            Map<String, Integer> originCounts = new java.util.LinkedHashMap<>()
+            sortedBuckets.each { entry ->
+                String origin = bucketOrigin.get(entry.key) ?: '?'
+                if (origin == '?') {
+                    String parts0 = (entry.key.split(/ \| /, 2))[0]
+                    if (parts0.endsWith('ComparisonFailure') || parts0.endsWith('AssertionError')) {
+                        origin = 'Test'
+                    }
+                }
+                originCounts.merge(origin, entry.value.size(), Integer.&sum)
+            }
+            int originTotal = (int) originCounts.values().sum(0)
+            sb << "## Failures by origin\n\n"
+            sb << "| Origin | Failures | Share |\n"
+            sb << "|---|---:|---:|\n"
+            originCounts.entrySet().toList().sort { -it.value }.each { e ->
+                int pct = originTotal == 0 ? 0 : (int) Math.round(100.0 * e.value / originTotal)
+                sb << "| ${e.key} | ${e.value} | ${pct}% |\n"
+            }
+            sb << "\n"
         }
 
         // ---- Per-class summary ------------------------------------------
