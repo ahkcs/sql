@@ -38,6 +38,16 @@ public class TestUtils {
   private static final String MAPPING_FILE_PATH = "src/test/resources/indexDefinitions/";
 
   /**
+   * System property that makes every test-created index parquet-backed (composite primary data
+   * format = parquet) with a single shard. Set by the analytics-engine compatibility test path so
+   * {@link org.opensearch.sql.ppl.PPLIntegTestCase}'s force-routing flag (which routes every query
+   * through the analytics-engine planner) can actually find a backend that supports the underlying
+   * storage. Without parquet, the analytics planner fails with "No backend can scan all requested
+   * fields..." regardless of the query.
+   */
+  public static final String ANALYTICS_PARQUET_INDICES_PROP = "tests.analytics.parquet_indices";
+
+  /**
    * Create test index by REST client.
    *
    * @param client client connection
@@ -48,6 +58,9 @@ public class TestUtils {
     Request request = new Request("PUT", "/" + indexName);
     JSONObject jsonObject = isNullOrEmpty(mapping) ? new JSONObject() : new JSONObject(mapping);
     setZeroReplicas(jsonObject);
+    if (Boolean.parseBoolean(System.getProperty(ANALYTICS_PARQUET_INDICES_PROP, "false"))) {
+      makeParquetBacked(jsonObject);
+    }
     request.setJsonEntity(jsonObject.toString());
     performRequest(client, request);
   }
@@ -65,6 +78,28 @@ public class TestUtils {
     JSONObject indexSettings =
         settings.has("index") ? settings.getJSONObject("index") : new JSONObject();
     indexSettings.put("number_of_replicas", 0);
+    settings.put("index", indexSettings);
+    jsonObject.put("settings", settings);
+  }
+
+  /**
+   * Switches the test index to a parquet-backed composite store with a single shard so the
+   * analytics-engine path has a backend that can scan it. Mirrors the per-IT setup pattern in
+   * {@code
+   * sandbox/plugins/analytics-backend-datafusion/src/internalClusterTest/.../CoordinatorReduceIT.java}
+   * but applied at the REST-test layer. No-op for tests that go through the legacy / Calcite path
+   * against Lucene indices.
+   */
+  private static void makeParquetBacked(JSONObject jsonObject) {
+    JSONObject settings =
+        jsonObject.has("settings") ? jsonObject.getJSONObject("settings") : new JSONObject();
+    JSONObject indexSettings =
+        settings.has("index") ? settings.getJSONObject("index") : new JSONObject();
+    indexSettings.put("number_of_shards", 1);
+    indexSettings.put("pluggable.dataformat.enabled", true);
+    indexSettings.put("pluggable.dataformat", "composite");
+    indexSettings.put("composite.primary_data_format", "parquet");
+    indexSettings.put("composite.secondary_data_formats", new org.json.JSONArray());
     settings.put("index", indexSettings);
     jsonObject.put("settings", settings);
   }
@@ -116,8 +151,17 @@ public class TestUtils {
   public static void loadDataByRestClient(
       RestClient client, String indexName, String dataSetFilePath) throws IOException {
     Path path = Paths.get(getResourceFilePath(dataSetFilePath));
-    Request request =
-        new Request("POST", "/" + indexName + "/_bulk?refresh=wait_for&wait_for_active_shards=all");
+    // Workaround: parquet-backed indices in the analytics-backend-lucene composite engine
+    // do not yet implement LuceneCommitter.getSafeCommitInfo (UnsupportedOperationException
+    // "TODO:: with index deleter"), which hangs refresh=wait_for until the test framework
+    // request timeout (~60s). Force-refresh sidesteps the safe-commit-info path while still
+    // making the bulk-loaded docs immediately searchable. Drop this branch once
+    // LuceneCommitter.getSafeCommitInfo is implemented.
+    String refreshParam =
+        Boolean.parseBoolean(System.getProperty(ANALYTICS_PARQUET_INDICES_PROP, "false"))
+            ? "refresh=true"
+            : "refresh=wait_for&wait_for_active_shards=all";
+    Request request = new Request("POST", "/" + indexName + "/_bulk?" + refreshParam);
     request.setJsonEntity(new String(Files.readAllBytes(path)));
     performRequest(client, request);
   }

@@ -45,6 +45,15 @@ public abstract class Settings {
         "plugins.calcite.pushdown.rowcount.estimation.factor"),
     CALCITE_SUPPORT_ALL_JOIN_TYPES("plugins.calcite.all_join_types.allowed"),
 
+    /**
+     * Force-route every PPL/SQL query through the analytics engine path, regardless of the index
+     * name pattern. Test-only knob used by the analytics compatibility report; should remain {@code
+     * false} in production. When {@code true}, {@link
+     * org.opensearch.sql.plugin.rest.RestUnifiedQueryAction#isAnalyticsIndex} returns {@code true}
+     * unconditionally.
+     */
+    CALCITE_ANALYTICS_FORCE_ROUTING("plugins.calcite.analytics.force_routing"),
+
     /** Query Settings. */
     FIELD_TYPE_TOLERANCE("plugins.query.field_type_tolerance"),
 

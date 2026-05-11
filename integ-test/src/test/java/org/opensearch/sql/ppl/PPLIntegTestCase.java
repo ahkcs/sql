@@ -42,11 +42,38 @@ public abstract class PPLIntegTestCase extends SQLIntegTestCase {
   public static final Integer DEFAULT_SUBSEARCH_MAXOUT = 10000;
   public static final Integer DEFAULT_JOIN_SUBSEARCH_MAXOUT = 50000;
 
+  /**
+   * System property toggle for the analytics compatibility report. When set, every PPL IT base
+   * setup forces the analytics routing flag on so all queries traverse the analytics-engine path.
+   * Off by default — normal CI runs untouched.
+   */
+  public static final String ANALYTICS_FORCE_ROUTING_PROP = "tests.analytics.force_routing";
+
   @Override
   protected void init() throws Exception {
     super.init();
     updatePushdownSettings();
     disableCalcite(); // calcite is enabled by default from 3.3.0
+    if (Boolean.parseBoolean(System.getProperty(ANALYTICS_FORCE_ROUTING_PROP, "false"))) {
+      enableCalcite();
+      enableAnalyticsForceRouting();
+    }
+  }
+
+  /**
+   * Force every PPL/SQL query to route through the analytics-engine path regardless of the index
+   * name pattern. Used by the analytics compatibility report.
+   */
+  public static void enableAnalyticsForceRouting() throws IOException {
+    updateClusterSettings(
+        new SQLIntegTestCase.ClusterSetting(
+            "persistent", Settings.Key.CALCITE_ANALYTICS_FORCE_ROUTING.getKeyValue(), "true"));
+  }
+
+  public static void disableAnalyticsForceRouting() throws IOException {
+    updateClusterSettings(
+        new SQLIntegTestCase.ClusterSetting(
+            "persistent", Settings.Key.CALCITE_ANALYTICS_FORCE_ROUTING.getKeyValue(), "false"));
   }
 
   protected JSONObject executeQuery(String query) throws IOException {
