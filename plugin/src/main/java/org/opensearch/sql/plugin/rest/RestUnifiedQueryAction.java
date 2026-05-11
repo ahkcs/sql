@@ -32,6 +32,7 @@ import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.calcite.CalcitePlanContext;
 import org.opensearch.sql.calcite.plan.rel.LogicalSystemLimit;
 import org.opensearch.sql.common.response.ResponseListener;
+import org.opensearch.sql.common.setting.Settings;
 import org.opensearch.sql.executor.ExecutionEngine.QueryResponse;
 import org.opensearch.sql.executor.QueryType;
 import org.opensearch.sql.executor.analytics.AnalyticsExecutionEngine;
@@ -85,6 +86,13 @@ public class RestUnifiedQueryAction {
   public boolean isAnalyticsIndex(String query, QueryType queryType) {
     if (query == null || query.isEmpty()) {
       return false;
+    }
+    // Coverage-report override: force every PPL query through the analytics-engine path so
+    // we can measure compatibility without per-index opt-in. Cluster setting set by
+    // analyticsCompatibilityTest via `tests.analytics.force_routing=true`.
+    if (Boolean.TRUE.equals(
+        pluginSettings.getSettingValue(Settings.Key.CALCITE_ANALYTICS_FORCE_ROUTING))) {
+      return true;
     }
     // Cluster-level opt-in: when `cluster.pluggable.dataformat="composite"`, new indices
     // inherit `index.pluggable.dataformat="composite"` at creation (see
