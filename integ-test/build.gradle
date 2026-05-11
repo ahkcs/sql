@@ -1118,6 +1118,15 @@ task analyticsCompatibilityTest(type: RestIntegTestTask) {
     }
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
+
+    // Drop the per-task testcluster that build-tools' RestTestBasePlugin auto-creates
+    // for every RestIntegTestTask. We hit an externally-managed runTask cluster via
+    // -Dtests.rest.cluster=..., so the auto-bound cluster (with 0 plugins) just brings
+    // up an empty OpenSearch JVM the framework immediately tears down — and on recent
+    // build-tools snapshots that teardown surfaces as a build-fatal EOFException.
+    // See OpenSearch buildSrc RestTestBasePlugin.java:57.
+    getClusters().clear()
+
     systemProperty 'tests.security.manager', 'false'
     systemProperty 'project.root', project.projectDir.absolutePath
     systemProperty 'java.io.tmpdir', opensearch_tmp_dir.absolutePath
@@ -1126,6 +1135,12 @@ task analyticsCompatibilityTest(type: RestIntegTestTask) {
     // Force every PPL query through the analytics-engine path. Picked up by
     // PPLIntegTestCase.init() via the ANALYTICS_FORCE_ROUTING_PROP constant.
     systemProperty 'tests.analytics.force_routing', 'true'
+
+    // Make every test-created index parquet-backed (composite primary data format = parquet,
+    // single shard) so the analytics-engine planner has a backend that can scan the storage.
+    // Picked up by TestUtils.createIndexByRestClient via ANALYTICS_PARQUET_INDICES_PROP.
+    // Without this, ~60% of tests fail with "No backend can scan all requested fields".
+    systemProperty 'tests.analytics.parquet_indices', 'true'
 
     systemProperty "https", System.getProperty("https")
     systemProperty "user", System.getProperty("user")
@@ -1419,7 +1434,11 @@ task analyticsCompatibilityReport {
 
         int totalFailed = totalFailures + totalErrors
         int totalPassed = totalTests - totalFailed - totalSkipped
-        double passPct = totalTests == 0 ? 0.0 : (100.0 * totalPassed / totalTests)
+        // Pass rate is reported over executed (passed + failed) tests, deliberately excluding
+        // skipped. Skipped tests don't tell us anything about analytics-engine compatibility —
+        // counting them in the denominator would dilute the signal we're after.
+        int totalExecuted = totalPassed + totalFailed
+        double passPct = totalExecuted == 0 ? 0.0 : (100.0 * totalPassed / totalExecuted)
 
         def sb = new StringBuilder()
         sb << "# Analytics-engine PPL IT Compatibility Report\n\n"
@@ -1436,7 +1455,7 @@ task analyticsCompatibilityReport {
         sb << "| Failed | ${totalFailures} |\n"
         sb << "| Errored | ${totalErrors} |\n"
         sb << "| Skipped | ${totalSkipped} |\n"
-        sb << "| Pass rate | **${String.format('%.1f', passPct)}%** |\n"
+        sb << "| Pass rate (passed / (passed + failed)) | **${String.format('%.1f', passPct)}%** |\n"
         sb << "| Total time | ${String.format('%.1f', totalTimeMs / 1000.0)}s |\n\n"
 
         int TOP_BUCKETS = 25
@@ -1519,8 +1538,10 @@ task analyticsCompatibilityReport {
         perClassActive.sort { a, b ->
             int[] ca = a[1], cb = b[1]
             int pa = ca[0] - ca[1] - ca[2], pb = cb[0] - cb[1] - cb[2]
-            double pctA = ca[0] == 0 ? 0.0 : (100.0 * pa / ca[0])
-            double pctB = cb[0] == 0 ? 0.0 : (100.0 * pb / cb[0])
+            // Match the top-level pass rate: divide by executed (passed + failed), not total.
+            int eaA = pa + ca[1], eaB = pb + cb[1]
+            double pctA = eaA == 0 ? 0.0 : (100.0 * pa / eaA)
+            double pctB = eaB == 0 ? 0.0 : (100.0 * pb / eaB)
             pctB <=> pctA ?: cb[0] <=> ca[0]
         }
         sb << "## Per-class pass-rate highlights\n\n"
@@ -1540,7 +1561,9 @@ task analyticsCompatibilityReport {
                     partial.take(8).collect { row ->
                         int[] c = row[1]
                         int t = c[0], f = c[1], s = c[2], p = t - f - s
-                        int pct = t == 0 ? 0 : (int) Math.round(100.0 * p / t)
+                        // Denominator excludes skipped to match the top-level pass-rate.
+                        int e = p + f
+                        int pct = e == 0 ? 0 : (int) Math.round(100.0 * p / e)
                         "${row[0].toString().replaceFirst(/^.*\./, '')} ${pct}%"
                     }.join(', ') + "\n"
         }
@@ -1549,7 +1572,8 @@ task analyticsCompatibilityReport {
 
         reportFile.text = sb.toString()
         logger.lifecycle("[analyticsCompatibilityReport] Wrote ${reportFile}")
-        logger.lifecycle("[analyticsCompatibilityReport] ${totalPassed}/${totalTests} passed " +
-                "(${String.format('%.1f', passPct)}%), ${totalFailed} failed, ${totalSkipped} skipped")
+        logger.lifecycle("[analyticsCompatibilityReport] ${totalPassed}/${totalExecuted} passed " +
+                "(${String.format('%.1f', passPct)}%, excludes skipped), " +
+                "${totalFailed} failed, ${totalSkipped} skipped, ${totalTests} total")
     }
 }
