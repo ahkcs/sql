@@ -1169,6 +1169,55 @@ task analyticsCompatibilityTest(type: RestIntegTestTask) {
     exclude 'org/opensearch/sql/jdbc/**'
     exclude 'org/opensearch/sql/security/**'
 
+    // Meta / admin ITs (explain, describe, system functions, settings, resource monitor,
+    // concurrency) — currently kept IN the denominator on purpose so the headline number
+    // stays honest. Revisit at end-of-project to claim a cleaner "query-path-only" pass rate.
+    // Candidates: CalcitePPLExplainIT, CalciteExplainIT, CalciteDescribeCommandIT,
+    // CalciteSystemFunctionIT, CalciteSettingsIT, CalciteResourceMonitorIT, PPLConcurrencyIT
+
+    // Dedup pattern: many `Calcite<X>IT extends <X>IT` — the subclass inherits every parent
+    // test method, so running both classes doubles the execution count. In the analytics-engine
+    // compatibility context we force every PPL query through the analytics-engine path via the
+    // cluster setting, so the two siblings traverse the identical code path and pass/fail in
+    // lockstep. Drop the legacy parent class for every such pair to make each unique test method
+    // contribute one entry, keeping the subclass since it also calls enableCalcite() in its
+    // own init() (no harm — still routed to analytics).
+    //
+    // Built at configuration time by scanning the Calcite source tree for parent declarations
+    // and confirming the parent's source file exists in the scope packages. Synthesized excludes
+    // join the static excludes above.
+    def calciteSrcRoot = file("$projectDir/src/test/java/org/opensearch/sql/calcite/remote")
+    def scopePackages = ['org/opensearch/sql/ppl/', 'org/opensearch/sql/sql/']
+    def dedupExcludes = []
+    if (calciteSrcRoot.isDirectory()) {
+        def parentExtractor = ~/^public class [A-Za-z]+IT extends ([A-Za-z]+)\b/
+        fileTree(calciteSrcRoot) { include "**/Calcite*IT.java" }.each { f ->
+            def parent = null
+            f.eachLine { line ->
+                if (parent == null) {
+                    def m = parentExtractor.matcher(line)
+                    if (m.find()) {
+                        parent = m.group(1)
+                    }
+                }
+            }
+            if (parent != null && parent.endsWith('IT') && !parent.startsWith('Calcite')) {
+                scopePackages.each { pkg ->
+                    def candidate = file("$projectDir/src/test/java/${pkg}${parent}.java")
+                    if (candidate.exists()) {
+                        dedupExcludes << "${pkg}${parent}.class"
+                    }
+                }
+            }
+        }
+    }
+    dedupExcludes.unique().each { e ->
+        exclude e
+    }
+    if (!dedupExcludes.isEmpty()) {
+        logger.lifecycle("[analyticsCompatibilityTest] Dedup'd ${dedupExcludes.unique().size()} legacy parent IT classes whose Calcite subclass covers them.")
+    }
+
     // The test task hits whatever cluster `-Dtests.rest.cluster=...` points at; no testClusters
     // dependency. Only run if the user supplied a cluster.
     onlyIf {
