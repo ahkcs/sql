@@ -1626,3 +1626,149 @@ task analyticsCompatibilityReport {
                 "${totalFailed} failed, ${totalSkipped} skipped, ${totalTests} total")
     }
 }
+
+// =============================================================================
+// integTestsReport — per-test failure listing
+//
+// Companion to analyticsCompatibilityReport. Reads the same JUnit XMLs but emits
+// a fundamentally different shape: every failing test method gets its own row
+// with the class, method name, exception type, and clipped failure message.
+// Use this when you need to see which specific test methods are failing within
+// each class — the bucket report aggregates failures globally and hides the
+// per-class detail.
+// =============================================================================
+task integTestsReport {
+    description = "Per-test failure listing — each failing test method with its exception " +
+            "type and clipped error message. Complements analyticsCompatibilityReport."
+    group = "verification"
+    dependsOn analyticsCompatibilityTest
+
+    def xmlDir = file("$buildDir/test-results/analyticsCompatibility")
+    def reportDir = file("$buildDir/reports/analytics-compatibility")
+    def reportFile = file("$reportDir/INTEG_TESTS_REPORT.md")
+
+    inputs.dir(xmlDir).optional()
+    outputs.file(reportFile)
+
+    doLast {
+        reportDir.mkdirs()
+        if (!xmlDir.isDirectory()) {
+            reportFile.text = "_No JUnit XML output found at ${xmlDir} — did analyticsCompatibilityTest run?_\n"
+            logger.lifecycle("[integTestsReport] Skipped — ${xmlDir} not present")
+            return
+        }
+
+        // Each failing test's row: (classFqn, methodName, exceptionType, clippedMessage).
+        // Tracked per-class so the renderer can emit one section per class with a stable
+        // ordering (descending by failure count, then ascending by class name).
+        def perClassFailures = [:]
+        int totalFailingTests = 0
+
+        // Match <failure type="..." message="..."> — JUnit's XML escapes &quot;, &lt;, &gt;
+        // inside the message attribute. We decode the standard entities so the rendered
+        // message reads naturally; the original text in test-results/ is the source of truth.
+        def failureExtractor = ~/(?s)<failure[^>]*\bmessage="([^"]*)"[^>]*\btype="([^"]*)"/
+        Closure decodeXml = { String s ->
+            (s ?: '').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
+                    .replace('&quot;', '"').replace('&apos;', "'")
+                    .replace('&#10;', ' ').replace('&#13;', ' ').replace('\n', ' ').replace('\r', ' ').trim()
+        }
+        Closure cellSafe = { String s ->
+            (s ?: '').replace('|', '/').trim()
+        }
+        Closure clip = { String s, int n -> s.length() > n ? s.substring(0, n - 1) + '…' : s }
+
+        // The PPL details JSON inside ResponseException.message is the most useful slice for
+        // bucketing. Pull "details": "..." when present; fall back to the first 200 chars of
+        // the raw message otherwise. Mirrors analyticsCompatibilityReport's bucket key shape
+        // so a row and a bucket entry are recognisably the same failure at a glance.
+        Closure shortMessage = { String fullMessage ->
+            def detailsMatch = (fullMessage =~ /"details"\s*:\s*"([^"]+)"/)
+            if (detailsMatch.find()) return decodeXml(detailsMatch.group(1))
+            return decodeXml(fullMessage)
+        }
+        Closure shortExc = { String fullType ->
+            (fullType ?: '?').replaceFirst(/^java\.lang\./, '').replaceFirst(/^org\.opensearch\.[^ ]*\./, '')
+        }
+
+        xmlDir.eachFileMatch(~/^TEST-.*\.xml$/) { xml ->
+            String classFqn = xml.name.replaceFirst(/^TEST-/, '').replaceFirst(/\.xml$/, '')
+            def rows = []
+            // Stream the file line-by-line to avoid loading multi-megabyte ResponseException
+            // payloads (some PPL failures embed entire HTTP response bodies). For each
+            // <testcase>...<failure ...>...</failure>...</testcase> block we only need the
+            // testcase name + the failure's type/message attributes.
+            String currentTest = null
+            StringBuilder block = null
+            xml.eachLine { line ->
+                def m = (line =~ /<testcase[^>]*\bname="([^"]+)"/)
+                if (m.find()) {
+                    currentTest = m.group(1)
+                    block = new StringBuilder()
+                }
+                if (block != null) {
+                    block.append(line).append('\n')
+                }
+                if (line.contains('</testcase>') && currentTest != null && block != null) {
+                    def failureMatch = (block.toString() =~ failureExtractor)
+                    if (failureMatch.find()) {
+                        String rawMessage = failureMatch.group(1)
+                        String rawType = failureMatch.group(2)
+                        rows.add([currentTest, shortExc(rawType), shortMessage(rawMessage)])
+                    }
+                    currentTest = null
+                    block = null
+                }
+            }
+            if (!rows.isEmpty()) {
+                perClassFailures[classFqn] = rows
+                totalFailingTests += rows.size()
+            }
+        }
+
+        // Sort classes by failure count desc, then class name asc.
+        def sortedClasses = perClassFailures.entrySet().toList().sort { a, b ->
+            int cmp = b.value.size() <=> a.value.size()
+            cmp != 0 ? cmp : a.key <=> b.key
+        }
+
+        def sb = new StringBuilder()
+        sb << "# Per-Test IT Failure Report\n\n"
+        sb << "Generated: ${new Date()}\n\n"
+        sb << "Cluster under test: `${System.getProperty('tests.rest.cluster') ?: '<unspecified>'}`\n\n"
+        sb << "Routing: every PPL query forced through the analytics-engine path " +
+                "(`tests.analytics.force_routing=true`, which sets the cluster setting " +
+                "`plugins.calcite.analytics.force_routing=true`).\n\n"
+
+        sb << "## Summary\n\n"
+        sb << "| Metric | Count |\n"
+        sb << "|---|---:|\n"
+        sb << "| Test classes with failures | ${sortedClasses.size()} |\n"
+        sb << "| Failing test methods | ${totalFailingTests} |\n\n"
+
+        // Per-class detail tables. Each class block lists every failing method with its
+        // exception type and clipped message. Methods stay in JUnit XML order so a reader
+        // diffing two reports sees stable rows for unchanged tests.
+        sb << "## Failing tests by class\n\n"
+        sortedClasses.each { entry ->
+            String fqn = entry.key
+            def rows = entry.value
+            String shortClass = fqn.replaceFirst(/^.*\./, '')
+            sb << "### ${shortClass} (${rows.size()} failing)\n\n"
+            sb << "Full class: `${fqn}`\n\n"
+            sb << "| Test method | Exception | Message |\n"
+            sb << "|---|---|---|\n"
+            rows.each { row ->
+                String method = row[0]
+                String exc = row[1]
+                String msg = clip(row[2], 140)
+                sb << "| `${cellSafe(method)}` | ${cellSafe(exc)} | ${cellSafe(msg)} |\n"
+            }
+            sb << "\n"
+        }
+
+        reportFile.text = sb.toString()
+        logger.lifecycle("[integTestsReport] Wrote ${reportFile}")
+        logger.lifecycle("[integTestsReport] ${totalFailingTests} failing tests across ${sortedClasses.size()} classes")
+    }
+}
