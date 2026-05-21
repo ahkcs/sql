@@ -1448,7 +1448,6 @@ task analyticsCompatibilityReport {
                 primary = primary.replace('\n', ' ').replace('\r', ' ').trim()
 
                 String normalized = normalize(primary)
-                if (normalized.length() > 200) normalized = normalized.substring(0, 200) + '…'
 
                 def key = "${excLabel} | ${normalized}".toString()
                 buckets.computeIfAbsent(key, { new java.util.ArrayList<String>() }).add(fqid)
@@ -1511,7 +1510,6 @@ task analyticsCompatibilityReport {
         Closure cell = { String s ->
             (s ?: '').replace('|', '/').replace('\n', ' ').replace('\r', ' ').trim()
         }
-        Closure clip = { String s, int n -> s.length() > n ? s.substring(0, n - 1) + '…' : s }
 
         def sortedBuckets = buckets.isEmpty() ? [] : buckets.entrySet().toList().sort { -it.value.size() }
         int totalFailedAll = (int) sortedBuckets.sum(0) { it.value.size() }
@@ -1520,7 +1518,6 @@ task analyticsCompatibilityReport {
                 (int) sortedBuckets.drop(TOP_BUCKETS).sum(0) { it.value.size() }
 
         sb << "## Top ${Math.min(TOP_BUCKETS, sortedBuckets.size())} failure buckets\n\n"
-        sb << "Cells are clipped to keep table renderers from line-wrapping. The full uncut messages live in `integ-test/build/test-results/analyticsCompatibility/`.\n\n"
         sb << "Origin column legend: `SQL/calcite` = our SQL plugin's Calcite visitors (`org.opensearch.sql.calcite.*`); `SQL/preflight` = our SQL plugin's parser/analyzer (raised before reaching the analytics-engine path); `SQL/other` = other SQL-plugin code; `AE` = analytics-engine plugin (`org.opensearch.analytics.*`); `AE/plugin` = analytics-engine sister plugins (parquet/composite/dsl); `Calcite` = the Apache Calcite library; `OpenSearch` = OpenSearch core; `Test` = test code (assertion failure, not a server error); `?` = no matching cluster-log frame found.\n\n"
         if (sortedBuckets.isEmpty()) {
             sb << "_No failures._\n\n"
@@ -1542,10 +1539,109 @@ task analyticsCompatibilityReport {
                 if (origin == '?' && (excType.endsWith('ComparisonFailure') || excType == 'java.lang.AssertionError' || excType == 'AssertionError')) {
                     origin = 'Test'
                 }
-                sb << "| ${idx} | ${entry.value.size()} | ${origin} | ${cell(clip(combined, 80))} |\n"
+                sb << "| ${idx} | ${entry.value.size()} | ${origin} | ${cell(combined)} |\n"
             }
             if (remainingBuckets > 0) {
                 sb << "\n_${remainingBuckets} more buckets cover the remaining ${remainingFails} failures (long tail, each ≤${sortedBuckets.get(TOP_BUCKETS).value.size()} tests)._\n\n"
+            }
+        }
+
+        // ---- Error-family rollup ----------------------------------------
+        // Collapse near-identical buckets that share a common message template into a single
+        // family row, then show each family's constituent buckets in a sub-table. Lets a
+        // single root cause (e.g. missing enum constants in `AggregateFunction`) show up as
+        // one entry instead of fragmenting across the top-N table — and makes the long-tail
+        // visible without dumping every bucket.
+        Closure familyKey = { String bucketKey ->
+            def famParts = bucketKey.split(/ \| /, 2)
+            String famExc = famParts[0]
+            String famMsg = famParts.length > 1 ? famParts[1] : ''
+            String fam = famMsg
+            // No enum constant <fq.Class>.<NAME>  -> <fq.Class>.*
+            fam = fam.replaceAll(/(No enum constant \S+)\.[A-Za-z0-9_]+/, '$1.*')
+            // Unable to convert call <FN>(<args>) -> Unable to convert call *(...)
+            fam = fam.replaceAll(/Unable to convert call \S+?\([^)]*\)/, 'Unable to convert call *(...)')
+            // No backend supports scalar function [<FN>] -> No backend supports scalar function [*]
+            fam = fam.replaceAll(/No backend supports scalar function \[[^\]]+\]/, 'No backend supports scalar function [*]')
+            // ... is not supported for [<FN>]
+            fam = fam.replaceAll(/is not supported for \[[^\]]+\]/, 'is not supported for [*]')
+            // Unrecognized filter operator [<X>]
+            fam = fam.replaceAll(/Unrecognized filter operator \[[^\]]+\]/, 'Unrecognized filter operator [*]')
+            // No backend supports aggregate function [<FN>] -> No backend supports aggregate function [*]
+            fam = fam.replaceAll(/No backend supports aggregate function \[[^\]]+\]/, 'No backend supports aggregate function [*]')
+            return "${famExc} | ${fam}".toString()
+        }
+
+        if (!sortedBuckets.isEmpty()) {
+            def familyToBuckets = new java.util.LinkedHashMap<String, java.util.List>()
+            sortedBuckets.each { entry ->
+                String fk = familyKey(entry.key)
+                familyToBuckets.computeIfAbsent(fk, { new java.util.ArrayList<>() }).add(entry)
+            }
+            // Only families that collapse 2+ distinct buckets earn a rollup row — single-bucket
+            // families add no information beyond the top-N table.
+            def multiBucketFamilies = familyToBuckets.entrySet().findAll { it.value.size() > 1 }.toList()
+            multiBucketFamilies.sort { a, b ->
+                int sumA = (int) a.value.sum(0) { it.value.size() }
+                int sumB = (int) b.value.sum(0) { it.value.size() }
+                sumB <=> sumA
+            }
+            Closure shortenExc = { String exc ->
+                exc.replaceFirst(/^.*?(ResponseException|AssertionError) → /, '')
+                        .replaceFirst(/^java\.lang\./, '').replaceFirst(/^org\.opensearch\.[^ ]*\./, '')
+            }
+            // Resolve a family origin: single origin if all constituent buckets share one,
+            // else "mixed". Lets us distinguish families that happen to display identical
+            // labels but originate from different throw paths (e.g. server-side
+            // ResponseException vs. test-side AssertionError).
+            Closure familyOriginOf = { java.util.List buckets1 ->
+                Set<String> origins = new java.util.LinkedHashSet<>()
+                buckets1.each { bEntry ->
+                    String o = bucketOrigin.get(bEntry.key) ?: '?'
+                    if (o == '?') {
+                        // p0 looks like "<outer> → <inner>" for wrapped failures, just "<outer>"
+                        // otherwise. Test-side classification keys off the OUTER class.
+                        String p0 = (bEntry.key.split(/ \| /, 2))[0]
+                        String outer = p0.split(/ → /, 2)[0]
+                        if (outer.endsWith('AssertionError') || outer.endsWith('ComparisonFailure')) {
+                            o = 'Test'
+                        }
+                    }
+                    origins.add(o)
+                }
+                origins.size() == 1 ? origins.iterator().next() : 'mixed'
+            }
+            if (!multiBucketFamilies.isEmpty()) {
+                sb << "## Error-family rollup\n\n"
+                sb << "Collapses buckets that share a common message template (e.g. all `No enum constant AggregateFunction.*` variants) into a single family, with a sub-table per family listing each constituent bucket. Helps spot one root cause that fragments across many specific buckets. The Origin column distinguishes families with otherwise identical labels but different throw paths.\n\n"
+                sb << "| Family | Origin | Buckets | Total failures |\n"
+                sb << "|---|:--|---:|---:|\n"
+                multiBucketFamilies.each { fEntry ->
+                    def fp = fEntry.key.split(/ \| /, 2)
+                    String fExc = shortenExc(fp[0])
+                    String fMsg = fp.length > 1 ? fp[1] : ''
+                    int totalFails = (int) fEntry.value.sum(0) { it.value.size() }
+                    String fOrigin = familyOriginOf(fEntry.value)
+                    sb << "| ${cell("${fExc} — ${fMsg}")} | ${fOrigin} | ${fEntry.value.size()} | ${totalFails} |\n"
+                }
+                sb << "\n### Family breakdowns\n\n"
+                multiBucketFamilies.each { fEntry ->
+                    def fp = fEntry.key.split(/ \| /, 2)
+                    String fExc = shortenExc(fp[0])
+                    String fMsg = fp.length > 1 ? fp[1] : ''
+                    int totalFails = (int) fEntry.value.sum(0) { it.value.size() }
+                    String fOrigin = familyOriginOf(fEntry.value)
+                    sb << "#### ${cell("${fExc} — ${fMsg}")} — Origin: ${fOrigin} (${totalFails} failures across ${fEntry.value.size()} buckets)\n\n"
+                    sb << "| Count | Bucket message |\n"
+                    sb << "|---:|---|\n"
+                    fEntry.value.toList().sort { -it.value.size() }.each { bEntry ->
+                        def bp = bEntry.key.split(/ \| /, 2)
+                        String bExc = shortenExc(bp[0])
+                        String bMsg = bp.length > 1 ? bp[1] : ''
+                        sb << "| ${bEntry.value.size()} | ${cell("${bExc} — ${bMsg}")} |\n"
+                    }
+                    sb << "\n"
+                }
             }
         }
 
@@ -1676,7 +1772,6 @@ task integTestsReport {
         Closure cellSafe = { String s ->
             (s ?: '').replace('|', '/').trim()
         }
-        Closure clip = { String s, int n -> s.length() > n ? s.substring(0, n - 1) + '…' : s }
 
         // The PPL details JSON inside ResponseException.message is the most useful slice for
         // bucketing. Pull "details": "..." when present; fall back to the first 200 chars of
@@ -1761,7 +1856,7 @@ task integTestsReport {
             rows.each { row ->
                 String method = row[0]
                 String exc = row[1]
-                String msg = clip(row[2], 140)
+                String msg = row[2]
                 sb << "| `${cellSafe(method)}` | ${cellSafe(exc)} | ${cellSafe(msg)} |\n"
             }
             sb << "\n"
