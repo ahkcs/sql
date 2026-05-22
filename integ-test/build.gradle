@@ -1287,6 +1287,33 @@ task analyticsCompatibilityReport {
             return n
         }
 
+        // ---- Out-of-scope filter ----------------------------------------
+        // Tests in these classes — or whose failure message contains any of these substrings —
+        // are excluded from pass-rate totals (both numerator AND denominator). They're listed
+        // in a separate "Out of scope" section so a reader sees what was filtered and why.
+        // Reason: we deliberately don't plan to support these surfaces on the analytics-engine
+        // route, so they shouldn't drag the headline pass-rate number.
+        Set<String> OUT_OF_SCOPE_CLASSES = new java.util.LinkedHashSet<>([
+            'org.opensearch.sql.calcite.remote.CalciteExplainIT',
+            // Features not in initial-phase scope (relevance scoring, highlighting, nested
+            // fields). Listed here defensively — the analytics filter currently only includes
+            // `calcite.remote.*IT` + `ppl.*IT`, so these sql.* classes don't actually run today.
+            'org.opensearch.sql.sql.ScoreQueryIT',
+            'org.opensearch.sql.sql.HighlightFunctionIT',
+            'org.opensearch.sql.sql.NestedIT'
+        ])
+        // Each entry: [substring_to_match_in_message_or_body, human_reason]
+        List<List<String>> OUT_OF_SCOPE_MESSAGE_PATTERNS = [
+            ['LogicalGraphLookup', 'analytics-engine does not plan to support LogicalGraphLookup']
+        ]
+        // Accumulators populated during XML scan, rendered in the "Out of scope" section.
+        def outOfScopeClassCounts = new java.util.LinkedHashMap<String, int[]>()
+        def outOfScopeMessageCounts = new java.util.LinkedHashMap<String, Integer>()
+        def outOfScopeMessageReason = new java.util.LinkedHashMap<String, String>()
+        OUT_OF_SCOPE_MESSAGE_PATTERNS.each { entry ->
+            outOfScopeMessageReason[entry[0]] = entry[1]
+        }
+
         // Map a top stack frame's package prefix to a short origin label.
         // Order matters: most-specific prefix first.
         Closure originFromFrame = { String fqClassMethod ->
@@ -1396,12 +1423,38 @@ task analyticsCompatibilityReport {
             int classSkipped = (root.@skipped ?: '0').toString().toInteger()
             double classTime = ((root.@time ?: '0') as String).replace(',', '.').toDouble()
 
-            totalTests += classTests
-            totalFailures += classFailures
+            // Class-level out-of-scope: exclude the entire file from totals, record separately.
+            if (OUT_OF_SCOPE_CLASSES.contains(className)) {
+                outOfScopeClassCounts[className] = [classTests, classFailures + classErrors, classSkipped] as int[]
+                totalTimeMs += (long) (classTime * 1000)
+                return
+            }
+
+            // Per-testcase scan to identify message-based out-of-scope tests; subtract those
+            // from the class totals so they don't pollute pass rate. Bucket scan happens
+            // again below for the kept testcases.
+            int classExcludedTests = 0
+            int classExcludedFailures = 0
+            root.testcase.each { tc ->
+                def fn = tc.failure ? tc.failure[0] : (tc.error ? tc.error[0] : null)
+                if (fn == null) return
+                String m = (fn.@message?.toString() ?: '') + ' ' + (fn.text() ?: '')
+                for (entry in OUT_OF_SCOPE_MESSAGE_PATTERNS) {
+                    if (m.contains(entry[0])) {
+                        classExcludedTests++
+                        classExcludedFailures++
+                        outOfScopeMessageCounts.merge(entry[0], 1, Integer.&sum)
+                        break
+                    }
+                }
+            }
+
+            totalTests += (classTests - classExcludedTests)
+            totalFailures += (classFailures - classExcludedFailures)
             totalErrors += classErrors
             totalSkipped += classSkipped
             totalTimeMs += (long) (classTime * 1000)
-            perClass[className] = [classTests, classFailures + classErrors, classSkipped] as int[]
+            perClass[className] = [classTests - classExcludedTests, classFailures + classErrors - classExcludedFailures, classSkipped] as int[]
 
             root.testcase.each { tc ->
                 def testName = tc.@name?.toString() ?: '<unknown>'
@@ -1412,6 +1465,15 @@ task analyticsCompatibilityReport {
                 def excType = failureNode.@type?.toString() ?: '<unknown>'
                 def msg = failureNode.@message?.toString() ?: ''
                 def body = failureNode.text() ?: ''
+
+                // Skip message-level out-of-scope testcases — already counted in
+                // outOfScopeMessageCounts and subtracted from class totals.
+                String scopeMatch = msg + ' ' + body
+                boolean isOutOfScope = false
+                for (entry in OUT_OF_SCOPE_MESSAGE_PATTERNS) {
+                    if (scopeMatch.contains(entry[0])) { isOutOfScope = true; break }
+                }
+                if (isOutOfScope) return
 
                 // ResponseException collapses every 500/4xx into one bucket because its message
                 // starts with the same wrapper text. Reach into the response body and extract the
@@ -1495,16 +1557,55 @@ task analyticsCompatibilityReport {
         sb << "Routing: every PPL query forced through the analytics-engine path " +
                 "(`tests.analytics.force_routing=true`, which sets the cluster setting " +
                 "`plugins.calcite.analytics.force_routing=true`).\n\n"
+        // Out-of-scope totals — shown in the summary line + the dedicated section below so the
+        // reader knows what was excluded from pass-rate math.
+        int outOfScopeClassTests = (int) outOfScopeClassCounts.values().sum(0) { (int) it[0] }
+        int outOfScopeMessageTests = (int) outOfScopeMessageCounts.values().sum(0)
+        int outOfScopeTotal = outOfScopeClassTests + outOfScopeMessageTests
+
         sb << "## Summary\n\n"
         sb << "| Metric | Count |\n"
         sb << "|---|---|\n"
-        sb << "| Tests executed | ${totalTests} |\n"
+        sb << "| Tests executed (in scope) | ${totalTests} |\n"
         sb << "| Passed | ${totalPassed} |\n"
         sb << "| Failed | ${totalFailures} |\n"
         sb << "| Errored | ${totalErrors} |\n"
         sb << "| Skipped | ${totalSkipped} |\n"
-        sb << "| Pass rate (passed / (passed + failed)) | **${String.format('%.1f', passPct)}%** |\n"
+        sb << "| **Pass rate** (passed / (passed + failed), in scope) | **${String.format('%.1f', passPct)}%** |\n"
+        if (outOfScopeTotal > 0) {
+            sb << "| Out of scope (excluded from pass rate) | ${outOfScopeTotal} |\n"
+        }
         sb << "| Total time | ${String.format('%.1f', totalTimeMs / 1000.0)}s |\n\n"
+
+        // ---- Out of scope ------------------------------------------------
+        // Tests we intentionally exclude from pass-rate math. Two categories:
+        //   - Whole IT classes whose surface we don't plan to support on the analytics-engine
+        //     route (e.g. CalciteExplainIT — explain output isn't a coverage signal).
+        //   - Specific error messages tied to features we won't implement (e.g. LogicalGraphLookup).
+        if (outOfScopeTotal > 0) {
+            sb << "## Out of scope (excluded from pass rate)\n\n"
+            sb << "Tests excluded from both numerator and denominator of the pass-rate calculation. Adjust the lists in `integ-test/build.gradle` (`OUT_OF_SCOPE_CLASSES`, `OUT_OF_SCOPE_MESSAGE_PATTERNS`) to update.\n\n"
+            if (!outOfScopeClassCounts.isEmpty()) {
+                sb << "### Excluded test classes\n\n"
+                sb << "| Class | Tests | Failures | Skipped |\n"
+                sb << "|---|---:|---:|---:|\n"
+                outOfScopeClassCounts.entrySet().toList().sort { -it.value[0] }.each { e ->
+                    int[] c = e.value
+                    sb << "| `${e.key}` | ${c[0]} | ${c[1]} | ${c[2]} |\n"
+                }
+                sb << "\n"
+            }
+            if (!outOfScopeMessageCounts.isEmpty()) {
+                sb << "### Excluded by error message\n\n"
+                sb << "| Message contains | Tests | Reason |\n"
+                sb << "|---|---:|---|\n"
+                outOfScopeMessageCounts.entrySet().toList().sort { -it.value }.each { e ->
+                    String reason = outOfScopeMessageReason.get(e.key) ?: ''
+                    sb << "| `${e.key}` | ${e.value} | ${reason} |\n"
+                }
+                sb << "\n"
+            }
+        }
 
         int TOP_BUCKETS = 25
         Closure cell = { String s ->
