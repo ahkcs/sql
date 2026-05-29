@@ -1314,6 +1314,24 @@ task analyticsCompatibilityReport {
             outOfScopeMessageReason[entry[0]] = entry[1]
         }
 
+        // ---- Watched messages -------------------------------------------
+        // For each [label, term1, term2, ...] entry, the report emits a per-test breakdown
+        // (class → method list) of every failure whose message+body contains ALL of the terms.
+        // Lets a triager drill into a specific assertion signature without grepping the XMLs.
+        // These are NOT excluded from pass rate — they're a reporting lens, not a filter.
+        List<List<String>> WATCHED_MESSAGES = [
+            ['expected Exception thrown but nothing was thrown', 'expected java.lang.Exception to be thrown'],
+            ['aggCall type DOUBLE vs inferred BIGINT', 'type mismatch:', 'DOUBLE', 'BIGINT'],
+            ['boolean compare: expected [true] got [false]', 'iterable with items [[true]] in any order'],
+            ['boolean compare: expected [false] got [true]', 'iterable with items [[false]] in any order'],
+        ]
+        // label -> (className -> sorted set of test methods)
+        def watchedHits = new java.util.LinkedHashMap<String, java.util.TreeMap<String, java.util.TreeSet<String>>>()
+        WATCHED_MESSAGES.each { entry -> watchedHits[entry[0]] = new java.util.TreeMap<>() }
+        // Bare AssertionError (empty/class-only message) gets its own bucket — it has no terms.
+        String BARE_ASSERTION_LABEL = 'bare java.lang.AssertionError (no message)'
+        watchedHits[BARE_ASSERTION_LABEL] = new java.util.TreeMap<>()
+
         // Map a top stack frame's package prefix to a short origin label.
         // Order matters: most-specific prefix first.
         Closure originFromFrame = { String fqClassMethod ->
@@ -1465,6 +1483,19 @@ task analyticsCompatibilityReport {
                 def excType = failureNode.@type?.toString() ?: '<unknown>'
                 def msg = failureNode.@message?.toString() ?: ''
                 def body = failureNode.text() ?: ''
+
+                // Watched-message collection — a reporting lens, gathered before any skip so it
+                // reflects the raw failures (independent of out-of-scope filtering).
+                String watchHaystack = msg + ' ' + body
+                WATCHED_MESSAGES.each { w ->
+                    def terms = w.subList(1, w.size())
+                    if (terms.every { watchHaystack.contains(it) }) {
+                        watchedHits[w[0]].computeIfAbsent(className, { new java.util.TreeSet<String>() }).add(testName.toString())
+                    }
+                }
+                if (excType.endsWith('AssertionError') && (msg.trim().isEmpty() || msg.trim() == 'java.lang.AssertionError')) {
+                    watchedHits[BARE_ASSERTION_LABEL].computeIfAbsent(className, { new java.util.TreeSet<String>() }).add(testName.toString())
+                }
 
                 // Skip message-level out-of-scope testcases — already counted in
                 // outOfScopeMessageCounts and subtracted from class totals.
@@ -1743,6 +1774,32 @@ task analyticsCompatibilityReport {
                     }
                     sb << "\n"
                 }
+            }
+        }
+
+        // ---- Watched messages: per-test breakdown -----------------------
+        // Per-test drill-down for a hand-picked set of failure signatures (configured in
+        // WATCHED_MESSAGES + the bare-AssertionError bucket). Each subsection lists the exact
+        // (class → test method) entries so a triager can act without grepping the XMLs.
+        boolean anyWatched = watchedHits.values().any { !it.isEmpty() }
+        if (anyWatched) {
+            sb << "## Watched error messages (per-test breakdown)\n\n"
+            sb << "Per-test drill-down for specific failure signatures. Configured via `WATCHED_MESSAGES` (and the bare-AssertionError bucket) in `integ-test/build.gradle`. These are a reporting lens only — not excluded from pass rate.\n\n"
+            watchedHits.each { label, classMap ->
+                int total = (int) classMap.values().sum(0) { it.size() }
+                sb << "### ${cell(label)} — ${total} test${total == 1 ? '' : 's'}\n\n"
+                if (classMap.isEmpty()) {
+                    sb << "_No matches._\n\n"
+                    return
+                }
+                sb << "| Class | Tests | Methods |\n"
+                sb << "|---|---:|---|\n"
+                classMap.entrySet().toList().sort { -it.value.size() }.each { e ->
+                    String shortClass = e.key.replaceFirst(/^org\.opensearch\.sql\.calcite\.remote\./, '').replaceFirst(/^org\.opensearch\.sql\./, '')
+                    String methods = e.value.collect { cell(it) }.join('<br>')
+                    sb << "| `${shortClass}` | ${e.value.size()} | ${methods} |\n"
+                }
+                sb << "\n"
             }
         }
 
