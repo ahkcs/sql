@@ -1423,6 +1423,12 @@ task analyticsCompatibilityReport {
         def buckets = new java.util.LinkedHashMap<String, java.util.List<String>>()
         // Bucket key -> origin label resolved at bucket time so the table render is a lookup.
         def bucketOrigin = new java.util.LinkedHashMap<String, String>()
+        // Bucket key -> one example failure body (raw text), captured at first encounter.
+        // Used by the per-bucket detailed-breakdown section to show one representative
+        // stack trace per bucket without holding every body in memory.
+        def bucketExampleBody = new java.util.LinkedHashMap<String, String>()
+        // Bucket key -> the fqid of that example (so the reader knows which test the trace is from).
+        def bucketExampleFqid = new java.util.LinkedHashMap<String, String>()
         // Per-class summary: className -> [tests, failures+errors, skipped]
         def perClass = new java.util.TreeMap<String, int[]>()
 
@@ -1544,6 +1550,15 @@ task analyticsCompatibilityReport {
 
                 def key = "${excLabel} | ${normalized}".toString()
                 buckets.computeIfAbsent(key, { new java.util.ArrayList<String>() }).add(fqid)
+
+                // Capture one example body per bucket (first encounter wins). Body is the inner
+                // text of the <failure>/<error> element — typically the full stack trace + nested
+                // ResponseException JSON. Used to print one representative trace per top-bucket
+                // in the detailed-breakdown section.
+                if (!bucketExampleBody.containsKey(key)) {
+                    bucketExampleBody[key] = body
+                    bucketExampleFqid[key] = fqid
+                }
 
                 // Resolve origin once per bucket: match cluster-log signature
                 // "<innerExcSimple> | <normalized stripped of formatter prefix>" against the
@@ -1678,102 +1693,62 @@ task analyticsCompatibilityReport {
             }
         }
 
-        // ---- Error-family rollup ----------------------------------------
-        // Collapse near-identical buckets that share a common message template into a single
-        // family row, then show each family's constituent buckets in a sub-table. Lets a
-        // single root cause (e.g. missing enum constants in `AggregateFunction`) show up as
-        // one entry instead of fragmenting across the top-N table — and makes the long-tail
-        // visible without dumping every bucket.
-        Closure familyKey = { String bucketKey ->
-            def famParts = bucketKey.split(/ \| /, 2)
-            String famExc = famParts[0]
-            String famMsg = famParts.length > 1 ? famParts[1] : ''
-            String fam = famMsg
-            // No enum constant <fq.Class>.<NAME>  -> <fq.Class>.*
-            fam = fam.replaceAll(/(No enum constant \S+)\.[A-Za-z0-9_]+/, '$1.*')
-            // Unable to convert call <FN>(<args>) -> Unable to convert call *(...)
-            fam = fam.replaceAll(/Unable to convert call \S+?\([^)]*\)/, 'Unable to convert call *(...)')
-            // No backend supports scalar function [<FN>] -> No backend supports scalar function [*]
-            fam = fam.replaceAll(/No backend supports scalar function \[[^\]]+\]/, 'No backend supports scalar function [*]')
-            // ... is not supported for [<FN>]
-            fam = fam.replaceAll(/is not supported for \[[^\]]+\]/, 'is not supported for [*]')
-            // Unrecognized filter operator [<X>]
-            fam = fam.replaceAll(/Unrecognized filter operator \[[^\]]+\]/, 'Unrecognized filter operator [*]')
-            // No backend supports aggregate function [<FN>] -> No backend supports aggregate function [*]
-            fam = fam.replaceAll(/No backend supports aggregate function \[[^\]]+\]/, 'No backend supports aggregate function [*]')
-            return "${famExc} | ${fam}".toString()
+        // ---- Top N: detailed per-bucket breakdown ----------------------
+        // For each of the top DETAIL_BUCKETS buckets (capped at 15 by default), list every
+        // failing (class, test method) the bucket covers and one representative stack trace.
+        // Lets a triager drill straight from the top-N table into the actionable details
+        // without grepping the XMLs by hand.
+        int DETAIL_BUCKETS = 15
+        Closure shortenExcForDetail = { String exc ->
+            exc.replaceFirst(/^.*?(ResponseException|AssertionError) → /, '')
+                    .replaceFirst(/^java\.lang\./, '').replaceFirst(/^org\.opensearch\.[^ ]*\./, '')
+        }
+        Closure unescapeXml = { String s ->
+            (s ?: '').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
+                    .replace('&quot;', '"').replace('&apos;', "'")
+                    .replace('&#10;', '\n').replace('&#13;', '\r')
+        }
+        // Decode + trim leading whitespace + cap at MAX so the report stays readable.
+        Closure exampleTrace = { String body ->
+            if (body == null) return ''
+            String decoded = unescapeXml(body).replaceAll(/(?m)^\s+/, '').trim()
+            int MAX = 4000
+            if (decoded.length() > MAX) {
+                decoded = decoded.substring(0, MAX) + "\n… (trace truncated; full body in test-results/analyticsCompatibility/)"
+            }
+            return decoded
         }
 
         if (!sortedBuckets.isEmpty()) {
-            def familyToBuckets = new java.util.LinkedHashMap<String, java.util.List>()
-            sortedBuckets.each { entry ->
-                String fk = familyKey(entry.key)
-                familyToBuckets.computeIfAbsent(fk, { new java.util.ArrayList<>() }).add(entry)
-            }
-            // Only families that collapse 2+ distinct buckets earn a rollup row — single-bucket
-            // families add no information beyond the top-N table.
-            def multiBucketFamilies = familyToBuckets.entrySet().findAll { it.value.size() > 1 }.toList()
-            multiBucketFamilies.sort { a, b ->
-                int sumA = (int) a.value.sum(0) { it.value.size() }
-                int sumB = (int) b.value.sum(0) { it.value.size() }
-                sumB <=> sumA
-            }
-            Closure shortenExc = { String exc ->
-                exc.replaceFirst(/^.*?(ResponseException|AssertionError) → /, '')
-                        .replaceFirst(/^java\.lang\./, '').replaceFirst(/^org\.opensearch\.[^ ]*\./, '')
-            }
-            // Resolve a family origin: single origin if all constituent buckets share one,
-            // else "mixed". Lets us distinguish families that happen to display identical
-            // labels but originate from different throw paths (e.g. server-side
-            // ResponseException vs. test-side AssertionError).
-            Closure familyOriginOf = { java.util.List buckets1 ->
-                Set<String> origins = new java.util.LinkedHashSet<>()
-                buckets1.each { bEntry ->
-                    String o = bucketOrigin.get(bEntry.key) ?: '?'
-                    if (o == '?') {
-                        // p0 looks like "<outer> → <inner>" for wrapped failures, just "<outer>"
-                        // otherwise. Test-side classification keys off the OUTER class.
-                        String p0 = (bEntry.key.split(/ \| /, 2))[0]
-                        String outer = p0.split(/ → /, 2)[0]
-                        if (outer.endsWith('AssertionError') || outer.endsWith('ComparisonFailure')) {
-                            o = 'Test'
-                        }
+            int detailCount = Math.min(DETAIL_BUCKETS, sortedBuckets.size())
+            sb << "## Top ${detailCount} failure buckets — detailed breakdown\n\n"
+            sb << "For each of the top ${detailCount} buckets, every failing `Class.test` is listed plus one representative stack trace. Trace is the raw `<failure>` body from the JUnit XML — typically the test-side exception followed by the wrapped server response. Truncated at 4000 chars; full bodies are in `integ-test/build/test-results/analyticsCompatibility/`.\n\n"
+            int idx2 = 0
+            sortedBuckets.take(detailCount).each { entry ->
+                idx2++
+                def parts = entry.key.split(/ \| /, 2)
+                String excType = parts.length > 0 ? parts[0] : '<unknown>'
+                String msg = parts.length > 1 ? parts[1] : ''
+                String shortExc = shortenExcForDetail(excType)
+                String origin = bucketOrigin.get(entry.key) ?: '?'
+                if (origin == '?' && (excType.endsWith('ComparisonFailure') || excType == 'java.lang.AssertionError' || excType == 'AssertionError')) {
+                    origin = 'Test'
+                }
+                int count = entry.value.size()
+                sb << "### #${idx2} — ${count} failure${count == 1 ? '' : 's'} — `${shortExc}` — Origin: ${origin}\n\n"
+                sb << "**Message**: ${cell(msg)}\n\n"
+                sb << "**Failing tests** (${count}):\n\n"
+                entry.value.toList().sort().each { fqid ->
+                    def matcher = fqid =~ /^(.+?)#(.+)$/
+                    if (matcher) {
+                        String cls = matcher[0][1].toString().replaceFirst(/^org\.opensearch\.sql\.calcite\.remote\./, '').replaceFirst(/^org\.opensearch\.sql\./, '')
+                        sb << "- `${cls}.${matcher[0][2]}`\n"
+                    } else {
+                        sb << "- `${fqid}`\n"
                     }
-                    origins.add(o)
                 }
-                origins.size() == 1 ? origins.iterator().next() : 'mixed'
-            }
-            if (!multiBucketFamilies.isEmpty()) {
-                sb << "## Error-family rollup\n\n"
-                sb << "Collapses buckets that share a common message template (e.g. all `No enum constant AggregateFunction.*` variants) into a single family, with a sub-table per family listing each constituent bucket. Helps spot one root cause that fragments across many specific buckets. The Origin column distinguishes families with otherwise identical labels but different throw paths.\n\n"
-                sb << "| Family | Origin | Buckets | Total failures |\n"
-                sb << "|---|:--|---:|---:|\n"
-                multiBucketFamilies.each { fEntry ->
-                    def fp = fEntry.key.split(/ \| /, 2)
-                    String fExc = shortenExc(fp[0])
-                    String fMsg = fp.length > 1 ? fp[1] : ''
-                    int totalFails = (int) fEntry.value.sum(0) { it.value.size() }
-                    String fOrigin = familyOriginOf(fEntry.value)
-                    sb << "| ${cell("${fExc} — ${fMsg}")} | ${fOrigin} | ${fEntry.value.size()} | ${totalFails} |\n"
-                }
-                sb << "\n### Family breakdowns\n\n"
-                multiBucketFamilies.each { fEntry ->
-                    def fp = fEntry.key.split(/ \| /, 2)
-                    String fExc = shortenExc(fp[0])
-                    String fMsg = fp.length > 1 ? fp[1] : ''
-                    int totalFails = (int) fEntry.value.sum(0) { it.value.size() }
-                    String fOrigin = familyOriginOf(fEntry.value)
-                    sb << "#### ${cell("${fExc} — ${fMsg}")} — Origin: ${fOrigin} (${totalFails} failures across ${fEntry.value.size()} buckets)\n\n"
-                    sb << "| Count | Bucket message |\n"
-                    sb << "|---:|---|\n"
-                    fEntry.value.toList().sort { -it.value.size() }.each { bEntry ->
-                        def bp = bEntry.key.split(/ \| /, 2)
-                        String bExc = shortenExc(bp[0])
-                        String bMsg = bp.length > 1 ? bp[1] : ''
-                        sb << "| ${bEntry.value.size()} | ${cell("${bExc} — ${bMsg}")} |\n"
-                    }
-                    sb << "\n"
-                }
+                sb << "\n**Example stack trace** (from `${bucketExampleFqid.get(entry.key) ?: '<unknown>'}`):\n\n"
+                sb << "```\n${exampleTrace(bucketExampleBody.get(entry.key))}\n```\n\n"
             }
         }
 
