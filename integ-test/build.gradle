@@ -1667,11 +1667,11 @@ task analyticsCompatibilityReport {
         //     test-side AssertionError / ComparisonFailure with no nested server-side
         //     exception (no `→` in the bucket key, meaning the JUnit failure body did
         //     not carry a wrapped ResponseException JSON).
-        //   - Query error — anything else (HTTP 5xx ResponseException, JSONException,
+        //   - Stability error — anything else (HTTP 5xx ResponseException, JSONException,
         //     IllegalArgumentException/IllegalStateException from the analytics planner,
         //     Substrait conversion errors, etc.). The query failed to execute.
         int correctnessCount = 0
-        int queryErrorCount = 0
+        int stabilityErrorCount = 0
         buckets.each { key, fqids ->
             String excLabel = (key.split(/ \| /, 2))[0]
             boolean hasInner = excLabel.contains(' → ')
@@ -1679,19 +1679,19 @@ task analyticsCompatibilityReport {
             if (isAssertion && !hasInner) {
                 correctnessCount += fqids.size()
             } else {
-                queryErrorCount += fqids.size()
+                stabilityErrorCount += fqids.size()
             }
         }
-        int categorizedTotal = correctnessCount + queryErrorCount
+        int categorizedTotal = correctnessCount + stabilityErrorCount
         if (categorizedTotal > 0) {
             sb << "## Failures by category\n\n"
-            sb << "Every in-scope failure is one of two kinds. *Correctness* failures mean the query ran successfully but returned wrong rows / wrong types / wrong cardinality (test-side AssertionError on the response). *Query errors* mean the query failed to execute — HTTP 5xx, planner exception, JSON parse failure, etc.\n\n"
+            sb << "Every in-scope failure is one of two kinds. *Correctness* failures mean the query ran successfully but returned wrong rows / wrong types / wrong cardinality (test-side AssertionError on the response). *Stability errors* mean the query failed to execute — HTTP 5xx, planner exception, JSON parse failure, etc.\n\n"
             sb << "| Category | Failures | Share | Definition |\n"
             sb << "|---|---:|---:|---|\n"
             int cPct = (int) Math.round(100.0 * correctnessCount / categorizedTotal)
-            int qPct = 100 - cPct
-            sb << "| Correctness (query executed, wrong result) | ${correctnessCount} | ${cPct}% | Test-side `AssertionError` / `ComparisonFailure` without a server-response wrapper. |\n"
-            sb << "| Query errors (query failed to execute)     | ${queryErrorCount}   | ${qPct}% | HTTP 5xx, `ResponseException`, planner exception, `JSONException`, server-side `AssertionError` (Litmus.THROW), etc. |\n\n"
+            int sPct = 100 - cPct
+            sb << "| Correctness (query executed, wrong result) | ${correctnessCount}     | ${cPct}% | Test-side `AssertionError` / `ComparisonFailure` without a server-response wrapper. |\n"
+            sb << "| Stability errors (query failed to execute) | ${stabilityErrorCount}  | ${sPct}% | HTTP 5xx, `ResponseException`, planner exception, `JSONException`, server-side `AssertionError` (Litmus.THROW), etc. |\n\n"
         }
 
         // ---- Out of scope ------------------------------------------------
