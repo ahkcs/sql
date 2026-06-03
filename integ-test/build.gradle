@@ -1300,11 +1300,43 @@ task analyticsCompatibilityReport {
             // `calcite.remote.*IT` + `ppl.*IT`, so these sql.* classes don't actually run today.
             'org.opensearch.sql.sql.ScoreQueryIT',
             'org.opensearch.sql.sql.HighlightFunctionIT',
-            'org.opensearch.sql.sql.NestedIT'
+            'org.opensearch.sql.sql.NestedIT',
+            // expand / mvexpand operate on nested arrays; not in initial-phase scope.
+            'org.opensearch.sql.calcite.remote.CalciteExpandCommandIT',
+            'org.opensearch.sql.calcite.remote.CalciteMvExpandCommandIT',
+            // Whole-class feature exclusions: not planning to support on analytics-engine.
+            'org.opensearch.sql.calcite.remote.CalciteAliasFieldAggregationIT',
+            'org.opensearch.sql.calcite.remote.CalciteGeoPointFormatsIT',
+            'org.opensearch.sql.calcite.remote.CalcitePPLNestedAggregationIT'
         ])
         // Each entry: [substring_to_match_in_message_or_body, human_reason]
+        // The matcher does a simple substring check; entries should be unique-enough text fragments.
         List<List<String>> OUT_OF_SCOPE_MESSAGE_PATTERNS = [
-            ['LogicalGraphLookup', 'analytics-engine does not plan to support LogicalGraphLookup']
+            ['LogicalGraphLookup', 'analytics-engine does not plan to support LogicalGraphLookup'],
+            // Metadata-field projection/where (e.g. fields _id, _index, _source). Not planned.
+            ['Field [_id]',     'metadata field _id (not planning to support on analytics engine)'],
+            ['Field [_index]',  'metadata field _index (not planning to support on analytics engine)'],
+            ['Field [_source]', 'metadata field _source (not planning to support on analytics engine)'],
+            // Alias-mapping fields (e.g. CalciteDataTypeIT.test_alias_data_type, scattered uses).
+            ['Field [alias_',     'alias-typed field (not planning to support on analytics engine)'],
+            ['Field [value_alias]', 'alias-typed field (not planning to support on analytics engine)'],
+            ['Field [@timestamp]',  'alias-typed @timestamp field (not planning to support on analytics engine)'],
+            // geo_point fields scattered across non-pure-geo IT classes.
+            ['Field [location]',           'geo_point field (not planning to support on analytics engine)'],
+            ['Field [point]',              'geo_point field (not planning to support on analytics engine)'],
+            ['Field [multiple_offices]',   'geo_point field (not planning to support on analytics engine)'],
+            ['Field [nested_locations]',   'geo_point field (not planning to support on analytics engine)'],
+            // Nested-object field paths (dotted) across non-pure-nested IT classes — by index root.
+            ['Field [address.',  'nested-object field path (not planning to support on analytics engine)'],
+            ['Field [address]',  'nested-object root (not planning to support on analytics engine)'],
+            ['Field [author.',   'nested-object field path (not planning to support on analytics engine)'],
+            ['Field [projects.', 'nested-object field path (not planning to support on analytics engine)'],
+            ['Field [comment.',  'nested-object field path (not planning to support on analytics engine)'],
+            ['Field [skills.',   'nested-object field path (not planning to support on analytics engine)'],
+            ['Field [machine.os', 'nested-object field path (not planning to support on analytics engine)'],
+            ['Field [aws]',      'nested-object root (not planning to support on analytics engine)'],
+            ['Field [agent]',    'nested-object root (not planning to support on analytics engine)'],
+            ['Field [log]',      'nested-object root (not planning to support on analytics engine)']
         ]
         // Accumulators populated during XML scan, rendered in the "Out of scope" section.
         def outOfScopeClassCounts = new java.util.LinkedHashMap<String, int[]>()
