@@ -1318,6 +1318,8 @@ task analyticsCompatibilityReport {
             'org.opensearch.sql.calcite.remote.CalciteFlattenDocValueIT',           // flatten (docvalue variant)
             'org.opensearch.sql.calcite.remote.CalciteTrendlineCommandIT',          // trendline
             'org.opensearch.sql.calcite.remote.CalcitePPLTrendlineIT',              // trendline (PPL variant)
+            'org.opensearch.sql.calcite.remote.CalciteConvertCommandIT',            // convert command
+            'org.opensearch.sql.ppl.ConvertCommandIT',                              // convert command (legacy parent, not deduped)
             // Functions not in initial-phase scope on analytics-engine.
             'org.opensearch.sql.calcite.remote.CalcitePPLCryptographicFunctionIT',  // crypto
             'org.opensearch.sql.calcite.remote.CalciteIPFunctionsIT',               // IP functions (cidr, etc.)
