@@ -1307,7 +1307,28 @@ task analyticsCompatibilityReport {
             // Whole-class feature exclusions: not planning to support on analytics-engine.
             'org.opensearch.sql.calcite.remote.CalciteAliasFieldAggregationIT',
             'org.opensearch.sql.calcite.remote.CalciteGeoPointFormatsIT',
-            'org.opensearch.sql.calcite.remote.CalcitePPLNestedAggregationIT'
+            'org.opensearch.sql.calcite.remote.CalcitePPLNestedAggregationIT',
+            // Commands not in initial-phase scope on analytics-engine.
+            'org.opensearch.sql.calcite.remote.CalciteMvCombineCommandIT',          // mvcombine
+            'org.opensearch.sql.calcite.remote.CalciteTransposeCommandIT',          // transpose
+            'org.opensearch.sql.calcite.remote.CalciteNoMvCommandIT',               // nomv
+            'org.opensearch.sql.calcite.remote.CalcitePPLGraphLookupIT',            // graphlookup
+            'org.opensearch.sql.calcite.remote.CalciteHighlightIT',                 // highlight
+            'org.opensearch.sql.calcite.remote.CalciteFlattenCommandIT',            // flatten
+            'org.opensearch.sql.calcite.remote.CalciteFlattenDocValueIT',           // flatten (docvalue variant)
+            'org.opensearch.sql.calcite.remote.CalcitePPLPatternsIT',               // patterns
+            'org.opensearch.sql.calcite.remote.CalcitePPLDashboardPatternsIT',      // patterns (dashboard)
+            'org.opensearch.sql.calcite.remote.CalciteTrendlineCommandIT',          // trendline
+            'org.opensearch.sql.calcite.remote.CalcitePPLTrendlineIT',              // trendline (PPL variant)
+            // Functions not in initial-phase scope on analytics-engine.
+            'org.opensearch.sql.calcite.remote.CalcitePPLCryptographicFunctionIT',  // crypto
+            'org.opensearch.sql.calcite.remote.CalciteIPFunctionsIT',               // IP functions (cidr, etc.)
+            'org.opensearch.sql.calcite.remote.CalciteIPComparisonIT',              // IP comparisons
+            'org.opensearch.sql.calcite.remote.CalcitePPLIPFunctionIT',             // IP functions (PPL variant)
+            'org.opensearch.sql.calcite.remote.CalciteParseCommandIT',              // parse command
+            'org.opensearch.sql.calcite.remote.CalcitePPLParseIT',                  // parse (PPL variant)
+            'org.opensearch.sql.calcite.remote.CalciteRexCommandIT',                // rex_extract (rex command)
+            'org.opensearch.sql.calcite.remote.CalcitePPLGrokIT'                    // grok
         ])
         // Each entry: [substring_to_match_in_message_or_body, human_reason]
         // The matcher does a simple substring check; entries should be unique-enough text fragments.
@@ -1641,9 +1662,11 @@ task analyticsCompatibilityReport {
         int outOfScopeMessageTests = (int) outOfScopeMessageCounts.values().sum(0)
         int outOfScopeTotal = outOfScopeClassTests + outOfScopeMessageTests
 
+        int totalBeforeExclusion = totalTests + outOfScopeTotal
         sb << "## Summary\n\n"
         sb << "| Metric | Count |\n"
         sb << "|---|---|\n"
+        sb << "| Total tests (before exclusion) | ${totalBeforeExclusion} |\n"
         sb << "| Tests executed (in scope) | ${totalTests} |\n"
         sb << "| Passed | ${totalPassed} |\n"
         sb << "| Failed | ${totalFailures} |\n"
