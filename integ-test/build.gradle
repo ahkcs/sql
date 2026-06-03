@@ -1476,12 +1476,6 @@ task analyticsCompatibilityReport {
         def buckets = new java.util.LinkedHashMap<String, java.util.List<String>>()
         // Bucket key -> origin label resolved at bucket time so the table render is a lookup.
         def bucketOrigin = new java.util.LinkedHashMap<String, String>()
-        // Bucket key -> one example failure body (raw text), captured at first encounter.
-        // Used by the per-bucket detailed-breakdown section to show one representative
-        // stack trace per bucket without holding every body in memory.
-        def bucketExampleBody = new java.util.LinkedHashMap<String, String>()
-        // Bucket key -> the fqid of that example (so the reader knows which test the trace is from).
-        def bucketExampleFqid = new java.util.LinkedHashMap<String, String>()
         // Per-class summary: className -> [tests, failures+errors, skipped]
         def perClass = new java.util.TreeMap<String, int[]>()
 
@@ -1603,15 +1597,6 @@ task analyticsCompatibilityReport {
 
                 def key = "${excLabel} | ${normalized}".toString()
                 buckets.computeIfAbsent(key, { new java.util.ArrayList<String>() }).add(fqid)
-
-                // Capture one example body per bucket (first encounter wins). Body is the inner
-                // text of the <failure>/<error> element — typically the full stack trace + nested
-                // ResponseException JSON. Used to print one representative trace per top-bucket
-                // in the detailed-breakdown section.
-                if (!bucketExampleBody.containsKey(key)) {
-                    bucketExampleBody[key] = body
-                    bucketExampleFqid[key] = fqid
-                }
 
                 // Resolve origin once per bucket: match cluster-log signature
                 // "<innerExcSimple> | <normalized stripped of formatter prefix>" against the
@@ -1758,26 +1743,11 @@ task analyticsCompatibilityReport {
             exc.replaceFirst(/^.*?(ResponseException|AssertionError) → /, '')
                     .replaceFirst(/^java\.lang\./, '').replaceFirst(/^org\.opensearch\.[^ ]*\./, '')
         }
-        Closure unescapeXml = { String s ->
-            (s ?: '').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
-                    .replace('&quot;', '"').replace('&apos;', "'")
-                    .replace('&#10;', '\n').replace('&#13;', '\r')
-        }
-        // Decode + trim leading whitespace + cap at MAX so the report stays readable.
-        Closure exampleTrace = { String body ->
-            if (body == null) return ''
-            String decoded = unescapeXml(body).replaceAll(/(?m)^\s+/, '').trim()
-            int MAX = 4000
-            if (decoded.length() > MAX) {
-                decoded = decoded.substring(0, MAX) + "\n… (trace truncated; full body in test-results/analyticsCompatibility/)"
-            }
-            return decoded
-        }
 
         if (!sortedBuckets.isEmpty()) {
             int detailCount = Math.min(DETAIL_BUCKETS, sortedBuckets.size())
             sb << "## Top ${detailCount} failure buckets — detailed breakdown\n\n"
-            sb << "For each of the top ${detailCount} buckets, every failing `Class.test` is listed plus one representative stack trace. Trace is the raw `<failure>` body from the JUnit XML — typically the test-side exception followed by the wrapped server response. Truncated at 4000 chars; full bodies are in `integ-test/build/test-results/analyticsCompatibility/`.\n\n"
+            sb << "For each of the top ${detailCount} buckets, every failing `Class.test` is listed. Full failure bodies are in `integ-test/build/test-results/analyticsCompatibility/`.\n\n"
             int idx2 = 0
             sortedBuckets.take(detailCount).each { entry ->
                 idx2++
@@ -1802,8 +1772,7 @@ task analyticsCompatibilityReport {
                         sb << "- `${fqid}`\n"
                     }
                 }
-                sb << "\n**Example stack trace** (from `${bucketExampleFqid.get(entry.key) ?: '<unknown>'}`):\n\n"
-                sb << "```\n${exampleTrace(bucketExampleBody.get(entry.key))}\n```\n\n"
+                sb << "\n"
             }
         }
 
