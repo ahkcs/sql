@@ -1316,19 +1316,17 @@ task analyticsCompatibilityReport {
             'org.opensearch.sql.calcite.remote.CalciteHighlightIT',                 // highlight
             'org.opensearch.sql.calcite.remote.CalciteFlattenCommandIT',            // flatten
             'org.opensearch.sql.calcite.remote.CalciteFlattenDocValueIT',           // flatten (docvalue variant)
-            'org.opensearch.sql.calcite.remote.CalcitePPLPatternsIT',               // patterns
-            'org.opensearch.sql.calcite.remote.CalcitePPLDashboardPatternsIT',      // patterns (dashboard)
             'org.opensearch.sql.calcite.remote.CalciteTrendlineCommandIT',          // trendline
             'org.opensearch.sql.calcite.remote.CalcitePPLTrendlineIT',              // trendline (PPL variant)
             // Functions not in initial-phase scope on analytics-engine.
             'org.opensearch.sql.calcite.remote.CalcitePPLCryptographicFunctionIT',  // crypto
             'org.opensearch.sql.calcite.remote.CalciteIPFunctionsIT',               // IP functions (cidr, etc.)
             'org.opensearch.sql.calcite.remote.CalciteIPComparisonIT',              // IP comparisons
-            'org.opensearch.sql.calcite.remote.CalcitePPLIPFunctionIT',             // IP functions (PPL variant)
-            'org.opensearch.sql.calcite.remote.CalciteParseCommandIT',              // parse command
-            'org.opensearch.sql.calcite.remote.CalcitePPLParseIT',                  // parse (PPL variant)
-            'org.opensearch.sql.calcite.remote.CalciteRexCommandIT',                // rex_extract (rex command)
-            'org.opensearch.sql.calcite.remote.CalcitePPLGrokIT'                    // grok
+            'org.opensearch.sql.calcite.remote.CalcitePPLIPFunctionIT'              // IP functions (PPL variant)
+            // NOTE: patterns / parse / rex / grok are IN scope on analytics-engine.
+            //   CalcitePPLPatternsIT, CalcitePPLDashboardPatternsIT, CalciteParseCommandIT,
+            //   CalcitePPLParseIT, CalciteRexCommandIT, CalcitePPLGrokIT — keep them in the
+            //   pass-rate denominator.
         ])
         // Each entry: [substring_to_match_in_message_or_body, human_reason]
         // The matcher does a simple substring check; entries should be unique-enough text fragments.
