@@ -1324,7 +1324,11 @@ task analyticsCompatibilityReport {
             'org.opensearch.sql.calcite.remote.CalcitePPLCryptographicFunctionIT',  // crypto
             'org.opensearch.sql.calcite.remote.CalciteIPFunctionsIT',               // IP functions (cidr, etc.)
             'org.opensearch.sql.calcite.remote.CalciteIPComparisonIT',              // IP comparisons
-            'org.opensearch.sql.calcite.remote.CalcitePPLIPFunctionIT'              // IP functions (PPL variant)
+            'org.opensearch.sql.calcite.remote.CalcitePPLIPFunctionIT',             // IP functions (PPL variant)
+            'org.opensearch.sql.calcite.remote.CalciteGeoIpFunctionsIT',            // geo-IP enrichment (lower priority)
+            // Aggregate suite of in-progress new commands — covered piecemeal by the
+            // per-command ITs (parse, rex, patterns, …) that already feed the report.
+            'org.opensearch.sql.calcite.remote.CalciteNewAddedCommandsIT'
             // NOTE: patterns / parse / rex / grok are IN scope on analytics-engine.
             //   CalcitePPLPatternsIT, CalcitePPLDashboardPatternsIT, CalciteParseCommandIT,
             //   CalcitePPLParseIT, CalciteRexCommandIT, CalcitePPLGrokIT — keep them in the
@@ -1334,6 +1338,9 @@ task analyticsCompatibilityReport {
         // The matcher does a simple substring check; entries should be unique-enough text fragments.
         List<List<String>> OUT_OF_SCOPE_MESSAGE_PATTERNS = [
             ['LogicalGraphLookup', 'analytics-engine does not plan to support LogicalGraphLookup'],
+            // mvmap / transform are deferred — exclude their "No backend supports scalar function"
+            // misses so they don't dominate the stability bucket on the analytics-engine route.
+            ['No backend supports scalar function [transform] among [datafusion]', 'transform / mvmap scalar functions deferred (lower priority on analytics engine)'],
             // Metadata-field projection/where (e.g. fields _id, _index, _source). Not planned.
             ['Field [_id]',     'metadata field _id (not planning to support on analytics engine)'],
             ['Field [_index]',  'metadata field _index (not planning to support on analytics engine)'],
@@ -1366,24 +1373,6 @@ task analyticsCompatibilityReport {
         OUT_OF_SCOPE_MESSAGE_PATTERNS.each { entry ->
             outOfScopeMessageReason[entry[0]] = entry[1]
         }
-
-        // ---- Watched messages -------------------------------------------
-        // For each [label, term1, term2, ...] entry, the report emits a per-test breakdown
-        // (class → method list) of every failure whose message+body contains ALL of the terms.
-        // Lets a triager drill into a specific assertion signature without grepping the XMLs.
-        // These are NOT excluded from pass rate — they're a reporting lens, not a filter.
-        List<List<String>> WATCHED_MESSAGES = [
-            ['expected Exception thrown but nothing was thrown', 'expected java.lang.Exception to be thrown'],
-            ['aggCall type DOUBLE vs inferred BIGINT', 'type mismatch:', 'DOUBLE', 'BIGINT'],
-            ['boolean compare: expected [true] got [false]', 'iterable with items [[true]] in any order'],
-            ['boolean compare: expected [false] got [true]', 'iterable with items [[false]] in any order'],
-        ]
-        // label -> (className -> sorted set of test methods)
-        def watchedHits = new java.util.LinkedHashMap<String, java.util.TreeMap<String, java.util.TreeSet<String>>>()
-        WATCHED_MESSAGES.each { entry -> watchedHits[entry[0]] = new java.util.TreeMap<>() }
-        // Bare AssertionError (empty/class-only message) gets its own bucket — it has no terms.
-        String BARE_ASSERTION_LABEL = 'bare java.lang.AssertionError (no message)'
-        watchedHits[BARE_ASSERTION_LABEL] = new java.util.TreeMap<>()
 
         // Map a top stack frame's package prefix to a short origin label.
         // Order matters: most-specific prefix first.
@@ -1537,19 +1526,6 @@ task analyticsCompatibilityReport {
                 def msg = failureNode.@message?.toString() ?: ''
                 def body = failureNode.text() ?: ''
 
-                // Watched-message collection — a reporting lens, gathered before any skip so it
-                // reflects the raw failures (independent of out-of-scope filtering).
-                String watchHaystack = msg + ' ' + body
-                WATCHED_MESSAGES.each { w ->
-                    def terms = w.subList(1, w.size())
-                    if (terms.every { watchHaystack.contains(it) }) {
-                        watchedHits[w[0]].computeIfAbsent(className, { new java.util.TreeSet<String>() }).add(testName.toString())
-                    }
-                }
-                if (excType.endsWith('AssertionError') && (msg.trim().isEmpty() || msg.trim() == 'java.lang.AssertionError')) {
-                    watchedHits[BARE_ASSERTION_LABEL].computeIfAbsent(className, { new java.util.TreeSet<String>() }).add(testName.toString())
-                }
-
                 // Skip message-level out-of-scope testcases — already counted in
                 // outOfScopeMessageCounts and subtracted from class totals.
                 String scopeMatch = msg + ' ' + body
@@ -1664,36 +1640,97 @@ task analyticsCompatibilityReport {
         sb << "| Total time | ${String.format('%.1f', totalTimeMs / 1000.0)}s |\n\n"
 
         // ---- Failures by category ----------------------------------------
-        // Classify every in-scope failure into one of two buckets:
+        // Classify every in-scope failure into one of three buckets:
         //   - Correctness — the query executed but the result was wrong. Detected as a
         //     test-side AssertionError / ComparisonFailure with no nested server-side
         //     exception (no `→` in the bucket key, meaning the JUnit failure body did
         //     not carry a wrapped ResponseException JSON).
-        //   - Stability error — anything else (HTTP 5xx ResponseException, JSONException,
-        //     IllegalArgumentException/IllegalStateException from the analytics planner,
-        //     Substrait conversion errors, etc.). The query failed to execute.
+        //   - Unsupported — query failed because the analytics-engine path declared the
+        //     surface unsupported. Includes server-side `IllegalStateException` (planner
+        //     "shouldn't reach here" assertions), `UnsupportedOperationException`,
+        //     `SubstraitConversionException`, server-side `AssertionError`
+        //     (Calcite Litmus.THROW), and any innermost exception whose message starts
+        //     with phrases like "Unsupported", "No backend", "Cannot plan", etc.
+        //   - Stability — actual bugs the analytics-engine path didn't handle:
+        //     `IndexOutOfBoundsException`, `NullPointerException`, `ClassCastException`,
+        //     `ArithmeticException`, `NumberFormatException`, `IllegalArgumentException`,
+        //     `JSONException`, etc. The query failed to execute and the cause isn't a
+        //     declared limitation.
+        def UNSUPPORTED_EXC_SIMPLE = [
+            'UnsupportedOperationException',
+            'SubstraitConversionException',
+            'SemanticCheckException',
+            'IllegalStateException',
+        ] as Set
+        def STABILITY_EXC_SIMPLE = [
+            'IndexOutOfBoundsException',
+            'ArrayIndexOutOfBoundsException',
+            'StringIndexOutOfBoundsException',
+            'NullPointerException',
+            'ClassCastException',
+            'ArithmeticException',
+            'NumberFormatException',
+            'IllegalArgumentException',
+            'JSONException',
+            'JsonProcessingException',
+            'JsonParseException',
+        ] as Set
+        def UNSUPPORTED_MSG_HINTS = [
+            'Unsupported',
+            'not supported',
+            'is not yet supported',
+            'No backend',
+            'No enum constant',
+            'Cannot plan',
+            'doesn\'t support',
+            'is not implemented',
+            'not yet implemented',
+        ]
         int correctnessCount = 0
+        int unsupportedCount = 0
         int stabilityErrorCount = 0
         buckets.each { key, fqids ->
-            String excLabel = (key.split(/ \| /, 2))[0]
+            String[] parts = key.split(/ \| /, 2)
+            String excLabel = parts[0]
+            String msgPart = parts.length > 1 ? parts[1] : ''
             boolean hasInner = excLabel.contains(' → ')
-            boolean isAssertion = excLabel.endsWith('AssertionError') || excLabel.endsWith('ComparisonFailure')
+            // Innermost exception simple name: part after `→` if wrapped, else the outer name.
+            String rawInner = hasInner ? excLabel.substring(excLabel.lastIndexOf('→') + 1).trim() : excLabel
+            // Strip package prefix — the bucket-key carries the FQN (e.g. java.lang.AssertionError,
+            // org.json.JSONException) while our category sets list simple names.
+            String innerExc = rawInner.contains('.') ? rawInner.substring(rawInner.lastIndexOf('.') + 1) : rawInner
+            boolean isAssertion = innerExc == 'AssertionError' || innerExc == 'ComparisonFailure'
+            boolean msgUnsupported = UNSUPPORTED_MSG_HINTS.any { msgPart.contains(it) }
+
             if (isAssertion && !hasInner) {
+                // Test-side AssertionError directly off the JUnit body → result mismatch.
                 correctnessCount += fqids.size()
+            } else if (isAssertion && hasInner) {
+                // Server-side AssertionError surfaced via ResponseException JSON → Calcite
+                // Litmus.THROW (planner reached a code path it considers illegal). Treat as
+                // unsupported surface, not a stability bug.
+                unsupportedCount += fqids.size()
+            } else if (UNSUPPORTED_EXC_SIMPLE.contains(innerExc) || msgUnsupported) {
+                unsupportedCount += fqids.size()
+            } else if (STABILITY_EXC_SIMPLE.contains(innerExc)) {
+                stabilityErrorCount += fqids.size()
             } else {
+                // Unknown exception type — default to stability so it stays visible.
                 stabilityErrorCount += fqids.size()
             }
         }
-        int categorizedTotal = correctnessCount + stabilityErrorCount
+        int categorizedTotal = correctnessCount + unsupportedCount + stabilityErrorCount
         if (categorizedTotal > 0) {
             sb << "## Failures by category\n\n"
-            sb << "Every in-scope failure is one of two kinds. *Correctness* failures mean the query ran successfully but returned wrong rows / wrong types / wrong cardinality (test-side AssertionError on the response). *Stability errors* mean the query failed to execute — HTTP 5xx, planner exception, JSON parse failure, etc.\n\n"
+            sb << "Every in-scope failure is one of three kinds. *Correctness* failures mean the query ran successfully but returned wrong rows / wrong types / wrong cardinality (test-side AssertionError on the response). *Unsupported* failures mean the analytics-engine path explicitly rejected the query — planner illegal-state assertions, Litmus.THROW, `UnsupportedOperationException`, Substrait conversion errors, or messages like \"No backend supports …\". *Stability* failures mean the path crashed on something it should have handled — `NullPointerException`, `IndexOutOfBoundsException`, `ClassCastException`, `IllegalArgumentException`, etc.\n\n"
             sb << "| Category | Failures | Share | Definition |\n"
             sb << "|---|---:|---:|---|\n"
             int cPct = (int) Math.round(100.0 * correctnessCount / categorizedTotal)
-            int sPct = 100 - cPct
+            int uPct = (int) Math.round(100.0 * unsupportedCount / categorizedTotal)
+            int sPct = Math.max(0, 100 - cPct - uPct)
             sb << "| Correctness (query executed, wrong result) | ${correctnessCount}     | ${cPct}% | Test-side `AssertionError` / `ComparisonFailure` without a server-response wrapper. |\n"
-            sb << "| Stability errors (query failed to execute) | ${stabilityErrorCount}  | ${sPct}% | HTTP 5xx, `ResponseException`, planner exception, `JSONException`, server-side `AssertionError` (Litmus.THROW), etc. |\n\n"
+            sb << "| Unsupported (declared limitation) | ${unsupportedCount}     | ${uPct}% | Server-side `IllegalStateException`, `UnsupportedOperationException`, `SubstraitConversionException`, `SemanticCheckException`, Litmus.THROW `AssertionError`, or innermost message indicating the surface is unsupported / no backend / not implemented. |\n"
+            sb << "| Stability (engine bug) | ${stabilityErrorCount}  | ${sPct}% | `NullPointerException`, `IndexOutOfBoundsException`, `ClassCastException`, `ArithmeticException`, `NumberFormatException`, `IllegalArgumentException`, `JSONException`, or any exception not declared above. |\n\n"
         }
 
         // ---- Out of scope ------------------------------------------------
@@ -1804,32 +1841,6 @@ task analyticsCompatibilityReport {
                     } else {
                         sb << "- `${fqid}`\n"
                     }
-                }
-                sb << "\n"
-            }
-        }
-
-        // ---- Watched messages: per-test breakdown -----------------------
-        // Per-test drill-down for a hand-picked set of failure signatures (configured in
-        // WATCHED_MESSAGES + the bare-AssertionError bucket). Each subsection lists the exact
-        // (class → test method) entries so a triager can act without grepping the XMLs.
-        boolean anyWatched = watchedHits.values().any { !it.isEmpty() }
-        if (anyWatched) {
-            sb << "## Watched error messages (per-test breakdown)\n\n"
-            sb << "Per-test drill-down for specific failure signatures. Configured via `WATCHED_MESSAGES` (and the bare-AssertionError bucket) in `integ-test/build.gradle`. These are a reporting lens only — not excluded from pass rate.\n\n"
-            watchedHits.each { label, classMap ->
-                int total = (int) classMap.values().sum(0) { it.size() }
-                sb << "### ${cell(label)} — ${total} test${total == 1 ? '' : 's'}\n\n"
-                if (classMap.isEmpty()) {
-                    sb << "_No matches._\n\n"
-                    return
-                }
-                sb << "| Class | Tests | Methods |\n"
-                sb << "|---|---:|---|\n"
-                classMap.entrySet().toList().sort { -it.value.size() }.each { e ->
-                    String shortClass = e.key.replaceFirst(/^org\.opensearch\.sql\.calcite\.remote\./, '').replaceFirst(/^org\.opensearch\.sql\./, '')
-                    String methods = e.value.collect { cell(it) }.join('<br>')
-                    sb << "| `${shortClass}` | ${e.value.size()} | ${methods} |\n"
                 }
                 sb << "\n"
             }
