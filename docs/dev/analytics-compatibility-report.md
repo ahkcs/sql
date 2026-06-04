@@ -2,7 +2,7 @@
 
 The analytics-compatibility report measures what fraction of the SQL plugin's existing PPL integration tests pass when every PPL query is forced through the analytics-engine route (Calcite → Substrait → DataFusion) instead of the legacy V2 engine.
 
-The output is a markdown report at `integ-test/build/reports/analytics-compatibility/REPORT.md` containing a Summary table, failures-by-category breakdown, top-25 failure buckets, top-15 detailed breakdown (every failing `Class.test` per bucket), watched-message drill-downs, an Out-of-scope section, and per-class pass-rate highlights.
+The output is a markdown report at `integ-test/build/reports/analytics-compatibility/REPORT.md` containing a Summary table, failures-by-category breakdown (Correctness / Unsupported / Stability), an Out-of-scope section, top-25 failure buckets, top-15 detailed breakdown (every failing `Class.test` per bucket), failures-by-origin rollup, and per-class pass-rate highlights.
 
 This doc is the runbook: setup, the commands, what to do when it crashes, and how to read the result.
 
@@ -148,11 +148,10 @@ The `-x :integ-test:analyticsCompatibilityTest` skips test execution; the report
 | Section | Purpose |
 |---|---|
 | Summary | Total tests / in-scope / passed / failed / skipped / pass-rate / out-of-scope / runtime. |
-| Failures by category | Splits in-scope failures into *Correctness* (test-side AssertionError on response) vs *Stability errors* (HTTP 5xx, planner exception, etc.). |
+| Failures by category | Splits in-scope failures into three buckets: *Correctness* (test-side AssertionError on response), *Unsupported* (declared limitation — `IllegalStateException`, `UnsupportedOperationException`, `SubstraitConversionException`, Calcite Litmus.THROW `AssertionError`, "No backend supports …" messages), and *Stability* (engine bug — `NullPointerException`, `IndexOutOfBoundsException`, `ClassCastException`, `IllegalArgumentException`, etc.). Classifier lives in `integ-test/build.gradle` around line 1650. |
 | Out of scope | Lists every excluded class and message-pattern with its counts. Adjusted via `OUT_OF_SCOPE_CLASSES` and `OUT_OF_SCOPE_MESSAGE_PATTERNS` in `integ-test/build.gradle`. |
 | Top 25 failure buckets | Failures grouped by normalized message, ordered by count. |
 | Top 15 detailed breakdown | For each of the top 15, every failing `Class.test` enumerated. |
-| Watched messages | Per-test drill-down for a hand-picked watch list (configured via `WATCHED_MESSAGES`). |
 | Failures by origin | Aggregate failure counts grouped by throw site (SQL/calcite, AE, OpenSearch, Test, etc.). |
 | Per-class pass-rate highlights | Top fully-passing and partially-passing IT classes. |
 
@@ -234,7 +233,7 @@ All knobs live in `integ-test/build.gradle` at the top of the `analyticsCompatib
 |---|---|
 | `OUT_OF_SCOPE_CLASSES` | Whole IT classes excluded from the pass-rate denominator. |
 | `OUT_OF_SCOPE_MESSAGE_PATTERNS` | Substring patterns matched against failure body; matching tests excluded. |
-| `WATCHED_MESSAGES` | Substring patterns the report renders as per-test drill-down sections. |
+| `UNSUPPORTED_EXC_SIMPLE` / `STABILITY_EXC_SIMPLE` / `UNSUPPORTED_MSG_HINTS` | Per-category exception/message classifier sets (Failures-by-category table). |
 | `TOP_BUCKETS` | Top-N buckets shown in the headline table (default 25). |
 | `DETAIL_BUCKETS` | Top-N buckets shown with full failing-tests list (default 15). |
 
