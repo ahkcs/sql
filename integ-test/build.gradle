@@ -1244,6 +1244,7 @@ task analyticsCompatibilityReport {
     def xmlDir = file("$buildDir/test-results/analyticsCompatibility")
     def reportDir = file("$buildDir/reports/analytics-compatibility")
     def reportFile = file("$reportDir/REPORT.md")
+    def correctnessReportFile = file("$reportDir/CORRECTNESS_REPORT.md")
     // Cluster log path. The cluster's testcluster log is the only source of server-side stack
     // traces — the SQL plugin's REST formatter only sends `type` + `reason` + `details` to the
     // client, never the throw-site frame. We need the frame to classify whether a failure is
@@ -1748,13 +1749,8 @@ task analyticsCompatibilityReport {
             sb << "| Stability (engine bug) | ${stabilityErrorCount}  | ${sPct}% | `NullPointerException`, `IndexOutOfBoundsException`, `ClassCastException`, `ArithmeticException`, `NumberFormatException`, `IllegalArgumentException`, `JSONException`, or any exception not declared above. |\n\n"
         }
 
-        // ---- Correctness failures ---------------------------------------
-        // Drill-down on every in-scope correctness failure: a query that executed but came
-        // back with wrong rows / types / cardinality. The flat table mirrors the per-test
-        // listing in the sibling SQL compatibility report (Class.test, exception + message
-        // excerpt). The "Grouped by message" table on top maps each normalized-message
-        // bucket to the tests it covers, so a triager can see which fixes batch together.
-        // `cell` is also used downstream in the Top-N rendering — declaring it here keeps
+        // ---- Shared rendering helpers -----------------------------------
+        // `cell` is also used downstream by the Top-N rendering — declaring it here keeps
         // both call sites in scope from one definition.
         Closure cell = { String s ->
             (s ?: '').replace('|', '/').replace('\n', ' ').replace('\r', ' ').trim()
@@ -1768,77 +1764,6 @@ task analyticsCompatibilityReport {
         }
         Closure simpleClass = { String fq ->
             (fq ?: '').replaceFirst(/^org\.opensearch\.sql\.calcite\.remote\./, '').replaceFirst(/^org\.opensearch\.sql\.[^.]+\./, '')
-        }
-        // Correctness-only buckets: test-side AssertionError/ComparisonFailure with no `→`
-        // wrapper (we already classified these in the section above; redo the predicate here
-        // so this section is self-contained).
-        def correctnessBuckets = new java.util.LinkedHashMap<String, java.util.List<String>>()
-        buckets.each { key, fqids ->
-            String excLabelLocal = (key.split(/ \| /, 2))[0]
-            boolean hasInnerLocal = excLabelLocal.contains(' → ')
-            String rawInnerLocal = hasInnerLocal ? excLabelLocal.substring(excLabelLocal.lastIndexOf('→') + 1).trim() : excLabelLocal
-            String simpleInnerLocal = rawInnerLocal.contains('.') ? rawInnerLocal.substring(rawInnerLocal.lastIndexOf('.') + 1) : rawInnerLocal
-            if (!hasInnerLocal && (simpleInnerLocal == 'AssertionError' || simpleInnerLocal == 'ComparisonFailure')) {
-                correctnessBuckets[key] = fqids
-            }
-        }
-
-        if (!correctnessBuckets.isEmpty()) {
-            int corrTotal = (int) correctnessBuckets.values().sum(0) { it.size() }
-            sb << "## Correctness failures (${corrTotal})\n\n"
-            sb << "Every in-scope failure where the query executed but the response was wrong. Two views:\n\n"
-            sb << "- **Grouped by message** — normalized message → failing tests, sorted by frequency. Use this to spot fixes that batch together.\n"
-            sb << "- **Per test (flat)** — one row per failure, mirrors the format of the sibling SQL compatibility report.\n\n"
-
-            // ---- Grouped view ----
-            sb << "### Grouped by message\n\n"
-            sb << "| # | Failures | Message | Tests |\n|---:|---:|---|---|\n"
-            int gIdx = 0
-            correctnessBuckets.entrySet().toList().sort { -it.value.size() }.each { entry ->
-                gIdx++
-                def parts = entry.key.split(/ \| /, 2)
-                String excType = parts.length > 0 ? parts[0] : ''
-                String shortExc = excType.contains('.') ? excType.substring(excType.lastIndexOf('.') + 1) : excType
-                String msg = parts.length > 1 ? parts[1] : ''
-                // Compact "Class.test" list for this bucket.
-                def testList = entry.value.collect { String fqid ->
-                    int hash = fqid.indexOf('#')
-                    String cls = hash > 0 ? fqid.substring(0, hash) : fqid
-                    String mtd = hash > 0 ? fqid.substring(hash + 1) : ''
-                    "${simpleClass(cls)}.${mtd}".toString()
-                }.sort().collect { cell(it) }.join('<br>')
-                sb << "| ${gIdx} | ${entry.value.size()} | `${shortExc}: ${cell(trimMsg(msg, 140))}` | ${testList} |\n"
-            }
-            sb << "\n"
-
-            // ---- Flat per-test view ----
-            sb << "### Per test (flat)\n\n"
-            sb << "| # | Test | Error |\n|---:|---|---|\n"
-            int fIdx = 0
-            // Sort by Class.test alphabetically, matching the sibling SQL report ordering.
-            correctnessTests.entrySet().toList()
-                    .sort { a, b ->
-                        int ha = a.key.indexOf('#'); int hb = b.key.indexOf('#')
-                        String ca = ha > 0 ? a.key.substring(0, ha) : a.key
-                        String cb = hb > 0 ? b.key.substring(0, hb) : b.key
-                        int cmp = simpleClass(ca).compareTo(simpleClass(cb))
-                        if (cmp != 0) return cmp
-                        String ma = ha > 0 ? a.key.substring(ha + 1) : ''
-                        String mb = hb > 0 ? b.key.substring(hb + 1) : ''
-                        return ma.compareTo(mb)
-                    }
-                    .each { e ->
-                        fIdx++
-                        String fqid = e.key
-                        int hash = fqid.indexOf('#')
-                        String cls = hash > 0 ? fqid.substring(0, hash) : fqid
-                        String mtd = hash > 0 ? fqid.substring(hash + 1) : ''
-                        String[] perTest = e.value
-                        String excDisplay = perTest[0] ?: 'AssertionError'
-                        String msgDisplay = trimMsg(perTest[1], 140)
-                        sb << "| ${fIdx} | `${simpleClass(cls)}.${mtd}` | `${excDisplay}: ${cell(msgDisplay)}` |\n"
-                    }
-            sb << "\n"
         }
 
         // ---- Out of scope ------------------------------------------------
@@ -2026,6 +1951,89 @@ task analyticsCompatibilityReport {
         logger.lifecycle("[analyticsCompatibilityReport] ${totalPassed}/${totalExecuted} passed " +
                 "(${String.format('%.1f', passPct)}%, excludes skipped), " +
                 "${totalFailed} failed, ${totalSkipped} skipped, ${totalTests} total")
+
+        // ====================================================================
+        // CORRECTNESS_REPORT.md — drill-down on every in-scope correctness
+        // failure (test-side AssertionError / ComparisonFailure with no
+        // server-side wrapper). Written to its own file so the main REPORT.md
+        // stays the headline summary without 500+ rows of test-by-test detail.
+        // ====================================================================
+        // Correctness-only buckets — same predicate as the failures-by-category classifier.
+        def correctnessBuckets = new java.util.LinkedHashMap<String, java.util.List<String>>()
+        buckets.each { key, fqids ->
+            String excLabelLocal = (key.split(/ \| /, 2))[0]
+            boolean hasInnerLocal = excLabelLocal.contains(' → ')
+            String rawInnerLocal = hasInnerLocal ? excLabelLocal.substring(excLabelLocal.lastIndexOf('→') + 1).trim() : excLabelLocal
+            String simpleInnerLocal = rawInnerLocal.contains('.') ? rawInnerLocal.substring(rawInnerLocal.lastIndexOf('.') + 1) : rawInnerLocal
+            if (!hasInnerLocal && (simpleInnerLocal == 'AssertionError' || simpleInnerLocal == 'ComparisonFailure')) {
+                correctnessBuckets[key] = fqids
+            }
+        }
+
+        StringBuilder cb = new StringBuilder()
+        int corrTotal = (int) correctnessBuckets.values().sum(0) { it.size() }
+        cb << "# Analytics-engine PPL IT — Correctness failures\n\n"
+        cb << "Generated: ${new java.util.Date()}\n\n"
+        cb << "Companion to `REPORT.md`. Lists every in-scope failure where the query executed but the response was wrong (test-side `AssertionError` / `ComparisonFailure` without a server-side wrapper).\n\n"
+        cb << "**Total correctness failures**: ${corrTotal}.\n\n"
+        cb << "Two views:\n\n"
+        cb << "- **Grouped by message** — normalized message → failing tests, sorted by frequency. Use this to spot fixes that batch together.\n"
+        cb << "- **Per test (flat)** — one row per failure, mirrors the format of the sibling SQL compatibility report.\n\n"
+
+        if (correctnessBuckets.isEmpty()) {
+            cb << "_No correctness failures in this run._\n"
+        } else {
+            // ---- Grouped view ----
+            cb << "## Grouped by message\n\n"
+            cb << "| # | Failures | Message | Tests |\n|---:|---:|---|---|\n"
+            int gIdx = 0
+            correctnessBuckets.entrySet().toList().sort { -it.value.size() }.each { entry ->
+                gIdx++
+                def parts = entry.key.split(/ \| /, 2)
+                String excType = parts.length > 0 ? parts[0] : ''
+                String shortExc = excType.contains('.') ? excType.substring(excType.lastIndexOf('.') + 1) : excType
+                String msg = parts.length > 1 ? parts[1] : ''
+                def testList = entry.value.collect { String fqid ->
+                    int hash = fqid.indexOf('#')
+                    String cls = hash > 0 ? fqid.substring(0, hash) : fqid
+                    String mtd = hash > 0 ? fqid.substring(hash + 1) : ''
+                    "${simpleClass(cls)}.${mtd}".toString()
+                }.sort().collect { cell(it) }.join('<br>')
+                cb << "| ${gIdx} | ${entry.value.size()} | `${shortExc}: ${cell(trimMsg(msg, 140))}` | ${testList} |\n"
+            }
+            cb << "\n"
+
+            // ---- Flat per-test view ----
+            cb << "## Per test (flat)\n\n"
+            cb << "| # | Test | Error |\n|---:|---|---|\n"
+            int fIdx = 0
+            correctnessTests.entrySet().toList()
+                    .sort { a, b ->
+                        int ha = a.key.indexOf('#'); int hb = b.key.indexOf('#')
+                        String ca = ha > 0 ? a.key.substring(0, ha) : a.key
+                        String cb2 = hb > 0 ? b.key.substring(0, hb) : b.key
+                        int cmp = simpleClass(ca).compareTo(simpleClass(cb2))
+                        if (cmp != 0) return cmp
+                        String ma = ha > 0 ? a.key.substring(ha + 1) : ''
+                        String mb = hb > 0 ? b.key.substring(hb + 1) : ''
+                        return ma.compareTo(mb)
+                    }
+                    .each { e ->
+                        fIdx++
+                        String fqid = e.key
+                        int hash = fqid.indexOf('#')
+                        String cls = hash > 0 ? fqid.substring(0, hash) : fqid
+                        String mtd = hash > 0 ? fqid.substring(hash + 1) : ''
+                        String[] perTest = e.value
+                        String excDisplay = perTest[0] ?: 'AssertionError'
+                        String msgDisplay = trimMsg(perTest[1], 140)
+                        cb << "| ${fIdx} | `${simpleClass(cls)}.${mtd}` | `${excDisplay}: ${cell(msgDisplay)}` |\n"
+                    }
+            cb << "\n"
+        }
+
+        correctnessReportFile.text = cb.toString()
+        logger.lifecycle("[analyticsCompatibilityReport] Wrote ${correctnessReportFile} (${corrTotal} correctness failures)")
     }
 }
 
