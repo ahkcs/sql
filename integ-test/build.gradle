@@ -1468,11 +1468,11 @@ task analyticsCompatibilityReport {
         def bucketOrigin = new java.util.LinkedHashMap<String, String>()
         // Per-class summary: className -> [tests, failures+errors, skipped]
         def perClass = new java.util.TreeMap<String, int[]>()
-        // Per-test raw (excType, message) capture for correctness rows. Used by the
-        // "Correctness failures — per test" flat table; preserves message specificity
-        // (e.g. "expected:<2> but was:<0>") that the bucket-keyed view loses.
-        // Keyed on fqid = "<fqClassName>#<testMethod>".
-        def correctnessTests = new java.util.LinkedHashMap<String, String[]>()
+        // First example body per correctness bucket, used by the Appendix in
+        // CORRECTNESS_REPORT.md to print a representative stacktrace for the top buckets.
+        // Keyed on the same bucket key as `buckets` ("<excLabel> | <normalized message>").
+        // First entry per bucket wins — later samples are ignored.
+        def correctnessBucketBody = new java.util.LinkedHashMap<String, String>()
 
         xmlDir.eachFileMatch(~/TEST-.*\.xml/) { xmlFile ->
             def root
@@ -1580,14 +1580,13 @@ task analyticsCompatibilityReport {
                 def key = "${excLabel} | ${normalized}".toString()
                 buckets.computeIfAbsent(key, { new java.util.ArrayList<String>() }).add(fqid)
 
-                // Capture raw (excType, message) per correctness fqid for the flat per-test table.
+                // Capture the first body per correctness bucket for the Appendix stacktrace.
                 // Correctness = test-side AssertionError/ComparisonFailure with no server-side
                 // wrapper (innerExcSimple == null means no `"type"` JSON field was found).
                 boolean isCorrectnessRow = (excType.endsWith('AssertionError') || excType.endsWith('ComparisonFailure')) &&
                         innerExcSimple == null
                 if (isCorrectnessRow) {
-                    String shortExc = excType.contains('.') ? excType.substring(excType.lastIndexOf('.') + 1) : excType
-                    correctnessTests[fqid] = [shortExc, primary] as String[]
+                    correctnessBucketBody.putIfAbsent(key, body)
                 }
 
                 // Resolve origin once per bucket: match cluster-log signature
@@ -1978,7 +1977,7 @@ task analyticsCompatibilityReport {
         cb << "**Total correctness failures**: ${corrTotal}.\n\n"
         cb << "Two views:\n\n"
         cb << "- **Grouped by message** — normalized message → failing tests, sorted by frequency. Use this to spot fixes that batch together.\n"
-        cb << "- **Per test (flat)** — one row per failure, mirrors the format of the sibling SQL compatibility report.\n\n"
+        cb << "- **Appendix — top-6 bucket triage** — for each of the top buckets: affected classes, an example stacktrace, and a one-sentence summary placeholder for triage assignment.\n\n"
 
         if (correctnessBuckets.isEmpty()) {
             cb << "_No correctness failures in this run._\n"
@@ -2003,33 +2002,74 @@ task analyticsCompatibilityReport {
             }
             cb << "\n"
 
-            // ---- Flat per-test view ----
-            cb << "## Per test (flat)\n\n"
-            cb << "| # | Test | Error |\n|---:|---|---|\n"
-            int fIdx = 0
-            correctnessTests.entrySet().toList()
-                    .sort { a, b ->
-                        int ha = a.key.indexOf('#'); int hb = b.key.indexOf('#')
-                        String ca = ha > 0 ? a.key.substring(0, ha) : a.key
-                        String cb2 = hb > 0 ? b.key.substring(0, hb) : b.key
-                        int cmp = simpleClass(ca).compareTo(simpleClass(cb2))
-                        if (cmp != 0) return cmp
-                        String ma = ha > 0 ? a.key.substring(ha + 1) : ''
-                        String mb = hb > 0 ? b.key.substring(hb + 1) : ''
-                        return ma.compareTo(mb)
-                    }
-                    .each { e ->
-                        fIdx++
-                        String fqid = e.key
+            // ---- Appendix: Top-6 bucket triage --------------------------
+            // For each of the top 6 buckets, render the message, the unique classes hit,
+            // and a representative stacktrace excerpt. The Summary line is auto-filled by
+            // the pattern table below for known message families, and falls back to
+            // `_(TBD — one sentence)_` for new patterns the triager should curate.
+            //
+            // Update the patterns whenever a new failure family emerges from the headline
+            // top-25 — the summary is meant to make ticket assignment a glance.
+            Closure summaryFor = { String msg ->
+                if (msg == null) return null
+                if (msg ==~ /(?s).*expected:<\d+> but was:<0>.*/) {
+                    return 'Filter / search / subquery returns zero rows where N were expected — predicate-evaluation gap on the analytics-engine route (text-field tokenization, IP-as-string comparison, or relative-time range routing).'
+                }
+                if (msg.trim() == 'java.lang.AssertionError' || msg.trim().isEmpty()) {
+                    return 'Test asserts an exception is thrown but the query either succeeded or threw a different exception class — error-handling / error-message parity gap between Calcite/AE and the legacy engine.'
+                }
+                if (msg.contains('iterable with items [[true]] in any order') && msg.contains('<[false]>')) {
+                    return 'Cross-type DATE / TIME / TIMESTAMP comparison returns `false` where `true` was expected — implicit-coercion gap on the analytics-engine route (e.g. `DATE = TIME`, `TIME = TIMESTAMP`).'
+                }
+                if (msg.contains('iterable with items [[false]] in any order') && msg.contains('<[true]>')) {
+                    return 'Inverse of the `[true] → [false]` bucket: cross-type DATE / TIME / TIMESTAMP `!=` / `<=` / `>=` returns `true` where `false` was expected — same coercion gap.'
+                }
+                if (msg ==~ /(?s).*expected:<\d+> but was:<\d+>.*/) {
+                    return 'Cardinality mismatch — count of rows differs from the expected value, but neither side is zero (likely aggregation / windowing / NULL-handling divergence).'
+                }
+                return null
+            }
+            int APPENDIX_BUCKETS = 6
+            def topBuckets = correctnessBuckets.entrySet().toList().sort { -it.value.size() }
+            int appendixCount = Math.min(APPENDIX_BUCKETS, topBuckets.size())
+            if (appendixCount > 0) {
+                cb << "## Appendix — Top ${appendixCount} bucket triage\n\n"
+                cb << "One row per top bucket with message, affected classes, and a sample stacktrace. The **Summary** line is intentionally blank for the triager to fill in (one sentence to route the work; mirrors the curated diagnoses in the sibling SQL compatibility report).\n\n"
+                int aIdx = 0
+                topBuckets.take(appendixCount).each { entry ->
+                    aIdx++
+                    def parts = entry.key.split(/ \| /, 2)
+                    String excType = parts.length > 0 ? parts[0] : ''
+                    String shortExc = excType.contains('.') ? excType.substring(excType.lastIndexOf('.') + 1) : excType
+                    String msg = parts.length > 1 ? parts[1] : ''
+                    // Unique class set covered by this bucket.
+                    def classes = entry.value.collect { String fqid ->
                         int hash = fqid.indexOf('#')
                         String cls = hash > 0 ? fqid.substring(0, hash) : fqid
-                        String mtd = hash > 0 ? fqid.substring(hash + 1) : ''
-                        String[] perTest = e.value
-                        String excDisplay = perTest[0] ?: 'AssertionError'
-                        String msgDisplay = trimMsg(perTest[1], 140)
-                        cb << "| ${fIdx} | `${simpleClass(cls)}.${mtd}` | `${excDisplay}: ${cell(msgDisplay)}` |\n"
+                        simpleClass(cls)
+                    }.unique().sort()
+                    // Trim sample body to ~25 lines so the appendix stays readable.
+                    String sampleBody = correctnessBucketBody.get(entry.key) ?: ''
+                    def bodyLines = sampleBody.split(/\r?\n/, -1).toList()
+                    int maxLines = 25
+                    String sampleTrimmed = bodyLines.size() > maxLines
+                            ? bodyLines.take(maxLines).join('\n') + "\n... (${bodyLines.size() - maxLines} more lines)"
+                            : bodyLines.join('\n')
+
+                    cb << "### Bucket #${aIdx} — ${entry.value.size()} failures\n\n"
+                    cb << "**Message:** `${shortExc}: ${cell(trimMsg(msg, 240))}`\n\n"
+                    cb << "**Classes affected (${classes.size()}):** ${classes.collect { "`${it}`" }.join(', ')}\n\n"
+                    String summary = summaryFor(msg)
+                    cb << "**Summary:** ${summary ?: '_(TBD — one sentence)_'}\n\n"
+                    if (!sampleTrimmed.trim().isEmpty()) {
+                        cb << "<details><summary>Example stacktrace</summary>\n\n"
+                        cb << "```\n"
+                        cb << sampleTrimmed
+                        cb << "\n```\n\n"
+                        cb << "</details>\n\n"
                     }
-            cb << "\n"
+                }
+            }
         }
 
         correctnessReportFile.text = cb.toString()
