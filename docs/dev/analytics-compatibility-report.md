@@ -2,7 +2,7 @@
 
 The analytics-compatibility report measures what fraction of the SQL plugin's existing PPL integration tests pass when every PPL query is forced through the analytics-engine route (Calcite → Substrait → DataFusion) instead of the legacy V2 engine.
 
-The output is a markdown report at `integ-test/build/reports/analytics-compatibility/REPORT.md` containing a Summary table, failures-by-category breakdown (Correctness / Unsupported / Stability), an Out-of-scope section, top-25 failure buckets, top-15 detailed breakdown (every failing `Class.test` per bucket), failures-by-origin rollup, and per-class pass-rate highlights.
+The output is a markdown report at `integ-test/build/reports/analytics-compatibility/REPORT.md` containing a Summary table, failures-by-category breakdown (Correctness / Unsupported / Stability), an Out-of-scope section, top-25 failure buckets, and a top-15 detailed breakdown (every failing `Class.test` per bucket). The Correctness drill-down (grouped-by-message + top-10 Appendix) lives in the sibling `CORRECTNESS_REPORT.md`.
 
 This doc is the runbook: setup, the commands, what to do when it crashes, and how to read the result.
 
@@ -152,8 +152,6 @@ The `-x :integ-test:analyticsCompatibilityTest` skips test execution; the report
 | Out of scope | Lists every excluded class and message-pattern with its counts. Adjusted via `OUT_OF_SCOPE_CLASSES` and `OUT_OF_SCOPE_MESSAGE_PATTERNS` in `integ-test/build.gradle`. |
 | Top 25 failure buckets | Failures grouped by normalized message, ordered by count. |
 | Top 15 detailed breakdown | For each of the top 15, every failing `Class.test` enumerated. |
-| Failures by origin | Aggregate failure counts grouped by throw site (SQL/calcite, AE, OpenSearch, Test, etc.). |
-| Per-class pass-rate highlights | Top fully-passing and partially-passing IT classes. |
 
 ---
 
