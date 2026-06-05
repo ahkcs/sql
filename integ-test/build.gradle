@@ -2024,12 +2024,15 @@ task analyticsCompatibilityReport {
                 if (msg.contains('iterable with items [[false]] in any order') && msg.contains('<[true]>')) {
                     return 'Inverse of the `[true] → [false]` bucket: cross-type DATE / TIME / TIMESTAMP `!=` / `<=` / `>=` returns `true` where `false` was expected — same coercion gap.'
                 }
+                if (msg.contains('Error should have context')) {
+                    return 'Error-response envelope does not include the pipeline-stage description the test asserts on — analytics-engine route loses the stage metadata when re-wrapping the error.'
+                }
                 if (msg ==~ /(?s).*expected:<\d+> but was:<\d+>.*/) {
                     return 'Cardinality mismatch — count of rows differs from the expected value, but neither side is zero (likely aggregation / windowing / NULL-handling divergence).'
                 }
                 return null
             }
-            int APPENDIX_BUCKETS = 6
+            int APPENDIX_BUCKETS = 10
             def topBuckets = correctnessBuckets.entrySet().toList().sort { -it.value.size() }
             int appendixCount = Math.min(APPENDIX_BUCKETS, topBuckets.size())
             if (appendixCount > 0) {
