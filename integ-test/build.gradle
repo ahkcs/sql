@@ -1244,7 +1244,6 @@ task analyticsCompatibilityReport {
     def xmlDir = file("$buildDir/test-results/analyticsCompatibility")
     def reportDir = file("$buildDir/reports/analytics-compatibility")
     def reportFile = file("$reportDir/REPORT.md")
-    def correctnessReportFile = file("$reportDir/CORRECTNESS_REPORT.md")
     // Cluster log path. The cluster's testcluster log is the only source of server-side stack
     // traces — the SQL plugin's REST formatter only sends `type` + `reason` + `details` to the
     // client, never the throw-site frame. We need the frame to classify whether a failure is
@@ -1468,11 +1467,6 @@ task analyticsCompatibilityReport {
         def bucketOrigin = new java.util.LinkedHashMap<String, String>()
         // Per-class summary: className -> [tests, failures+errors, skipped]
         def perClass = new java.util.TreeMap<String, int[]>()
-        // First example body per correctness bucket, used by the Appendix in
-        // CORRECTNESS_REPORT.md to print a representative stacktrace for the top buckets.
-        // Keyed on the same bucket key as `buckets` ("<excLabel> | <normalized message>").
-        // First entry per bucket wins — later samples are ignored.
-        def correctnessBucketBody = new java.util.LinkedHashMap<String, String>()
 
         xmlDir.eachFileMatch(~/TEST-.*\.xml/) { xmlFile ->
             def root
@@ -1579,15 +1573,6 @@ task analyticsCompatibilityReport {
 
                 def key = "${excLabel} | ${normalized}".toString()
                 buckets.computeIfAbsent(key, { new java.util.ArrayList<String>() }).add(fqid)
-
-                // Capture the first body per correctness bucket for the Appendix stacktrace.
-                // Correctness = test-side AssertionError/ComparisonFailure with no server-side
-                // wrapper (innerExcSimple == null means no `"type"` JSON field was found).
-                boolean isCorrectnessRow = (excType.endsWith('AssertionError') || excType.endsWith('ComparisonFailure')) &&
-                        innerExcSimple == null
-                if (isCorrectnessRow) {
-                    correctnessBucketBody.putIfAbsent(key, body)
-                }
 
                 // Resolve origin once per bucket: match cluster-log signature
                 // "<innerExcSimple> | <normalized stripped of formatter prefix>" against the
@@ -1749,20 +1734,9 @@ task analyticsCompatibilityReport {
         }
 
         // ---- Shared rendering helpers -----------------------------------
-        // `cell` is also used downstream by the Top-N rendering — declaring it here keeps
-        // both call sites in scope from one definition.
+        // `cell` is used by the Top-N rendering below.
         Closure cell = { String s ->
             (s ?: '').replace('|', '/').replace('\n', ' ').replace('\r', ' ').trim()
-        }
-        Closure trimMsg = { String s, int n ->
-            String t = (s ?: '').replace('|', '/').replace('\n', ' ').replace('\r', ' ').trim()
-            // JUnit XML's failure.@message often starts with "<fq.exception.Class>: ..." —
-            // strip that prefix because the excType column already carries the class.
-            t = t.replaceFirst(/^[\w\.\$]+(?:Exception|Error|Failure):\s*/, '')
-            t.length() > n ? t.substring(0, n - 1) + '…' : t
-        }
-        Closure simpleClass = { String fq ->
-            (fq ?: '').replaceFirst(/^org\.opensearch\.sql\.calcite\.remote\./, '').replaceFirst(/^org\.opensearch\.sql\.[^.]+\./, '')
         }
 
         // ---- Out of scope ------------------------------------------------
@@ -1880,133 +1854,6 @@ task analyticsCompatibilityReport {
         logger.lifecycle("[analyticsCompatibilityReport] ${totalPassed}/${totalExecuted} passed " +
                 "(${String.format('%.1f', passPct)}%, excludes skipped), " +
                 "${totalFailed} failed, ${totalSkipped} skipped, ${totalTests} total")
-
-        // ====================================================================
-        // CORRECTNESS_REPORT.md — drill-down on every in-scope correctness
-        // failure (test-side AssertionError / ComparisonFailure with no
-        // server-side wrapper). Written to its own file so the main REPORT.md
-        // stays the headline summary without 500+ rows of test-by-test detail.
-        // ====================================================================
-        // Correctness-only buckets — same predicate as the failures-by-category classifier.
-        def correctnessBuckets = new java.util.LinkedHashMap<String, java.util.List<String>>()
-        buckets.each { key, fqids ->
-            String excLabelLocal = (key.split(/ \| /, 2))[0]
-            boolean hasInnerLocal = excLabelLocal.contains(' → ')
-            String rawInnerLocal = hasInnerLocal ? excLabelLocal.substring(excLabelLocal.lastIndexOf('→') + 1).trim() : excLabelLocal
-            String simpleInnerLocal = rawInnerLocal.contains('.') ? rawInnerLocal.substring(rawInnerLocal.lastIndexOf('.') + 1) : rawInnerLocal
-            if (!hasInnerLocal && (simpleInnerLocal == 'AssertionError' || simpleInnerLocal == 'ComparisonFailure')) {
-                correctnessBuckets[key] = fqids
-            }
-        }
-
-        StringBuilder cb = new StringBuilder()
-        int corrTotal = (int) correctnessBuckets.values().sum(0) { it.size() }
-        cb << "# Analytics-engine PPL IT — Correctness failures\n\n"
-        cb << "Generated: ${new java.util.Date()}\n\n"
-        cb << "Companion to `REPORT.md`. Lists every in-scope failure where the query executed but the response was wrong (test-side `AssertionError` / `ComparisonFailure` without a server-side wrapper).\n\n"
-        cb << "**Total correctness failures**: ${corrTotal}.\n\n"
-        cb << "Two views:\n\n"
-        cb << "- **Grouped by message** — normalized message → failing tests, sorted by frequency. Use this to spot fixes that batch together.\n"
-        cb << "- **Appendix — top-6 bucket triage** — for each of the top buckets: affected classes, an example stacktrace, and a one-sentence summary placeholder for triage assignment.\n\n"
-
-        if (correctnessBuckets.isEmpty()) {
-            cb << "_No correctness failures in this run._\n"
-        } else {
-            // ---- Grouped view ----
-            cb << "## Grouped by message\n\n"
-            cb << "| # | Failures | Message | Tests |\n|---:|---:|---|---|\n"
-            int gIdx = 0
-            correctnessBuckets.entrySet().toList().sort { -it.value.size() }.each { entry ->
-                gIdx++
-                def parts = entry.key.split(/ \| /, 2)
-                String excType = parts.length > 0 ? parts[0] : ''
-                String shortExc = excType.contains('.') ? excType.substring(excType.lastIndexOf('.') + 1) : excType
-                String msg = parts.length > 1 ? parts[1] : ''
-                def testList = entry.value.collect { String fqid ->
-                    int hash = fqid.indexOf('#')
-                    String cls = hash > 0 ? fqid.substring(0, hash) : fqid
-                    String mtd = hash > 0 ? fqid.substring(hash + 1) : ''
-                    "${simpleClass(cls)}.${mtd}".toString()
-                }.sort().collect { cell(it) }.join('<br>')
-                cb << "| ${gIdx} | ${entry.value.size()} | `${shortExc}: ${cell(trimMsg(msg, 140))}` | ${testList} |\n"
-            }
-            cb << "\n"
-
-            // ---- Appendix: Top-6 bucket triage --------------------------
-            // For each of the top 6 buckets, render the message, the unique classes hit,
-            // and a representative stacktrace excerpt. The Summary line is auto-filled by
-            // the pattern table below for known message families, and falls back to
-            // `_(TBD — one sentence)_` for new patterns the triager should curate.
-            //
-            // Update the patterns whenever a new failure family emerges from the headline
-            // top-25 — the summary is meant to make ticket assignment a glance.
-            Closure summaryFor = { String msg ->
-                if (msg == null) return null
-                if (msg ==~ /(?s).*expected:<\d+> but was:<0>.*/) {
-                    return 'Filter / search / subquery returns zero rows where N were expected — predicate-evaluation gap on the analytics-engine route (text-field tokenization, IP-as-string comparison, or relative-time range routing).'
-                }
-                if (msg.trim() == 'java.lang.AssertionError' || msg.trim().isEmpty()) {
-                    return 'Test asserts an exception is thrown but the query either succeeded or threw a different exception class — error-handling / error-message parity gap between Calcite/AE and the legacy engine.'
-                }
-                if (msg.contains('iterable with items [[true]] in any order') && msg.contains('<[false]>')) {
-                    return 'Cross-type DATE / TIME / TIMESTAMP comparison returns `false` where `true` was expected — implicit-coercion gap on the analytics-engine route (e.g. `DATE = TIME`, `TIME = TIMESTAMP`).'
-                }
-                if (msg.contains('iterable with items [[false]] in any order') && msg.contains('<[true]>')) {
-                    return 'Inverse of the `[true] → [false]` bucket: cross-type DATE / TIME / TIMESTAMP `!=` / `<=` / `>=` returns `true` where `false` was expected — same coercion gap.'
-                }
-                if (msg.contains('Error should have context')) {
-                    return 'Error-response envelope does not include the pipeline-stage description the test asserts on — analytics-engine route loses the stage metadata when re-wrapping the error.'
-                }
-                if (msg ==~ /(?s).*expected:<\d+> but was:<\d+>.*/) {
-                    return 'Cardinality mismatch — count of rows differs from the expected value, but neither side is zero (likely aggregation / windowing / NULL-handling divergence).'
-                }
-                return null
-            }
-            int APPENDIX_BUCKETS = 10
-            def topBuckets = correctnessBuckets.entrySet().toList().sort { -it.value.size() }
-            int appendixCount = Math.min(APPENDIX_BUCKETS, topBuckets.size())
-            if (appendixCount > 0) {
-                cb << "## Appendix — Top ${appendixCount} bucket triage\n\n"
-                cb << "One row per top bucket with message, affected classes, and a sample stacktrace. The **Summary** line is intentionally blank for the triager to fill in (one sentence to route the work; mirrors the curated diagnoses in the sibling SQL compatibility report).\n\n"
-                int aIdx = 0
-                topBuckets.take(appendixCount).each { entry ->
-                    aIdx++
-                    def parts = entry.key.split(/ \| /, 2)
-                    String excType = parts.length > 0 ? parts[0] : ''
-                    String shortExc = excType.contains('.') ? excType.substring(excType.lastIndexOf('.') + 1) : excType
-                    String msg = parts.length > 1 ? parts[1] : ''
-                    // Unique class set covered by this bucket.
-                    def classes = entry.value.collect { String fqid ->
-                        int hash = fqid.indexOf('#')
-                        String cls = hash > 0 ? fqid.substring(0, hash) : fqid
-                        simpleClass(cls)
-                    }.unique().sort()
-                    // Trim sample body to ~25 lines so the appendix stays readable.
-                    String sampleBody = correctnessBucketBody.get(entry.key) ?: ''
-                    def bodyLines = sampleBody.split(/\r?\n/, -1).toList()
-                    int maxLines = 25
-                    String sampleTrimmed = bodyLines.size() > maxLines
-                            ? bodyLines.take(maxLines).join('\n') + "\n... (${bodyLines.size() - maxLines} more lines)"
-                            : bodyLines.join('\n')
-
-                    cb << "### Bucket #${aIdx} — ${entry.value.size()} failures\n\n"
-                    cb << "**Message:** `${shortExc}: ${cell(trimMsg(msg, 240))}`\n\n"
-                    cb << "**Classes affected (${classes.size()}):** ${classes.collect { "`${it}`" }.join(', ')}\n\n"
-                    String summary = summaryFor(msg)
-                    cb << "**Summary:** ${summary ?: '_(TBD — one sentence)_'}\n\n"
-                    if (!sampleTrimmed.trim().isEmpty()) {
-                        cb << "<details><summary>Example stacktrace</summary>\n\n"
-                        cb << "```\n"
-                        cb << sampleTrimmed
-                        cb << "\n```\n\n"
-                        cb << "</details>\n\n"
-                    }
-                }
-            }
-        }
-
-        correctnessReportFile.text = cb.toString()
-        logger.lifecycle("[analyticsCompatibilityReport] Wrote ${correctnessReportFile} (${corrTotal} correctness failures)")
     }
 }
 

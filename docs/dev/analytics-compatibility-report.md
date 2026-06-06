@@ -2,7 +2,7 @@
 
 The analytics-compatibility report measures what fraction of the SQL plugin's existing PPL integration tests pass when every PPL query is forced through the analytics-engine route (Calcite → Substrait → DataFusion) instead of the legacy V2 engine.
 
-The output is a markdown report at `integ-test/build/reports/analytics-compatibility/REPORT.md` containing a Summary table, failures-by-category breakdown (Correctness / Unsupported / Stability), an Out-of-scope section, top-25 failure buckets, and a top-15 detailed breakdown (every failing `Class.test` per bucket). The Correctness drill-down (grouped-by-message + top-10 Appendix) lives in the sibling `CORRECTNESS_REPORT.md`.
+The output is a markdown report at `integ-test/build/reports/analytics-compatibility/REPORT.md` containing a Summary table, failures-by-category breakdown (Correctness / Unsupported / Stability), an Out-of-scope section, top-25 failure buckets, and a top-15 detailed breakdown (every failing `Class.test` per bucket).
 
 This doc is the runbook: setup, the commands, what to do when it crashes, and how to read the result.
 
