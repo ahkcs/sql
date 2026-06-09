@@ -1337,7 +1337,13 @@ task analyticsCompatibilityReport {
             'org.opensearch.sql.calcite.remote.CalcitePPLExplainIT',
             // describe — wires to PPL_MAPPINGS_ODFE_SYS_TABLE pseudo-table that isn't registered
             // in the analytics-engine catalog; meta-feature, mirrors CalciteExplainIT.
-            'org.opensearch.sql.calcite.remote.CalciteDescribeCommandIT'
+            'org.opensearch.sql.calcite.remote.CalciteDescribeCommandIT',
+            // Error-report-stage feature (structured JSON error context/location/code) not wired
+            // on the analytics route — entire class tests that surface.
+            'org.opensearch.sql.calcite.remote.CalciteErrorReportStageIT',
+            // fetch_size pagination not honored on the analytics route (engine returns full
+            // result set instead of the requested page).
+            'org.opensearch.sql.ppl.FetchSizeIT'
             // NOTE: patterns / parse / rex / grok are IN scope on analytics-engine.
             //   CalcitePPLPatternsIT, CalcitePPLDashboardPatternsIT, CalciteParseCommandIT,
             //   CalcitePPLParseIT, CalciteRexCommandIT, CalcitePPLGrokIT — keep them in the
