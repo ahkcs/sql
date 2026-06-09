@@ -77,11 +77,31 @@ public class TestUtils {
     /**
      * Inject the parquet-backed composite-store index settings into {@code jsonObject}. No-op when
      * the config is disabled; idempotent — safe on any index-creation JSON shape.
+     *
+     * <p>When the cluster has {@code cluster.pluggable.dataformat=composite} set,
+     * MetadataCreateIndexService auto-stamps every new index as composite and the composite/parquet
+     * format rejects nested-typed fields and alias mappings (derived-source fields) at PUT mapping.
+     * That would nuke whole test classes whose shared fixture (e.g. {@code datatypes_index_mapping})
+     * happens to declare one such field even though the tests themselves never query it. To keep
+     * the index parquet-backed (so the analytics-engine path is genuinely exercised) AND keep as
+     * many field paths queryable as possible, rewrite composite-incompatible field definitions in
+     * the mapping before PUT:
+     *
+     * <ul>
+     *   <li>{@code nested} → strip the {@code type} key so it becomes an implicit {@code object}.
+     *       Sub-properties stay intact, so paths like {@code comments.likes} still resolve and the
+     *       tests reading them keep running on parquet. Nested-array semantics differ slightly
+     *       (flatten vs join), which can shift a few tests from pass to Correctness-bucket.
+     *   <li>{@code alias} → drop. An alias has no clean object equivalent (it points to another
+     *       field of a specific type). Tests that query the alias name surface as a legitimate
+     *       {@code Field [X] not found} failure, caught by the report's out-of-scope patterns.
+     * </ul>
      */
     static void applyIndexCreationSettings(JSONObject jsonObject) {
       if (!isEnabled()) {
         return;
       }
+      rewriteCompositeIncompatibleFields(jsonObject);
       JSONObject settings =
           jsonObject.has("settings") ? jsonObject.getJSONObject("settings") : new JSONObject();
       JSONObject indexSettings =
@@ -94,6 +114,52 @@ public class TestUtils {
           "composite.secondary_data_formats", new JSONArray().put(SECONDARY_FORMAT_LUCENE));
       settings.put("index", indexSettings);
       jsonObject.put("settings", settings);
+    }
+
+    private static void rewriteCompositeIncompatibleFields(JSONObject jsonObject) {
+      if (!jsonObject.has("mappings")) {
+        return;
+      }
+      rewriteNode(jsonObject.getJSONObject("mappings"));
+    }
+
+    /**
+     * Field types the composite/parquet format rejects at PUT mapping (alias, geo_point,
+     * geo_shape, binary). Dropped from the mapping so the index creates; tests that query the
+     * dropped field surface as a "Field [X] not found" caught by OUT_OF_SCOPE_MESSAGE_PATTERNS,
+     * or the pure-feature class is already in OUT_OF_SCOPE_CLASSES. Extend this set when a new
+     * incompatible type is observed in a fixture (the report will surface a fresh PUT 400).
+     */
+    private static final java.util.Set<String> COMPOSITE_INCOMPATIBLE_TYPES =
+        java.util.Set.of("alias", "geo_point", "geo_shape", "binary");
+
+    private static void rewriteNode(JSONObject node) {
+      if (!node.has("properties")) {
+        return;
+      }
+      JSONObject props = node.getJSONObject("properties");
+      java.util.List<String> toRemove = new java.util.ArrayList<>();
+      for (String field : props.keySet()) {
+        JSONObject child = props.getJSONObject(field);
+        String type = child.optString("type", null);
+        if (type != null && COMPOSITE_INCOMPATIBLE_TYPES.contains(type)) {
+          toRemove.add(field);
+        } else if ("nested".equals(type)) {
+          // Demote to object so child paths stay resolvable on parquet. If the field has
+          // sub-properties, drop `type` (implicit object); leaf-only nested → explicit object.
+          if (child.has("properties")) {
+            child.remove("type");
+          } else {
+            child.put("type", "object");
+          }
+          rewriteNode(child);
+        } else {
+          rewriteNode(child);
+        }
+      }
+      for (String field : toRemove) {
+        props.remove(field);
+      }
     }
 
     /**

@@ -1332,7 +1332,12 @@ task analyticsCompatibilityReport {
             // Commands deferred on the analytics-engine route.
             'org.opensearch.sql.calcite.remote.CalcitePPLJoinIT',                    // join (deferred)
             'org.opensearch.sql.calcite.remote.CalciteStreamstatsCommandIT',         // streamstats (deferred)
-            'org.opensearch.sql.calcite.remote.CalciteSearchCommandIT'               // search command (deferred)
+            'org.opensearch.sql.calcite.remote.CalciteSearchCommandIT',              // search command (deferred)
+            // PPL explain — meta-feature, mirrors the already-excluded CalciteExplainIT.
+            'org.opensearch.sql.calcite.remote.CalcitePPLExplainIT',
+            // describe — wires to PPL_MAPPINGS_ODFE_SYS_TABLE pseudo-table that isn't registered
+            // in the analytics-engine catalog; meta-feature, mirrors CalciteExplainIT.
+            'org.opensearch.sql.calcite.remote.CalciteDescribeCommandIT'
             // NOTE: patterns / parse / rex / grok are IN scope on analytics-engine.
             //   CalcitePPLPatternsIT, CalcitePPLDashboardPatternsIT, CalciteParseCommandIT,
             //   CalcitePPLParseIT, CalciteRexCommandIT, CalcitePPLGrokIT — keep them in the
@@ -1345,6 +1350,25 @@ task analyticsCompatibilityReport {
             // mvmap / transform are deferred — exclude their "No backend supports scalar function"
             // misses so they don't dominate the stability bucket on the analytics-engine route.
             ['No backend supports scalar function [transform] among [datafusion]', 'transform / mvmap scalar functions deferred (lower priority on analytics engine)'],
+            ['No backend supports scalar function [reduce] among [datafusion]', 'reduce scalar function deferred (lower priority on analytics engine — same family as transform/mvmap)'],
+            // AE planner gap on correlated subqueries — Sort rule doesn't know how to handle a
+            // LogicalCorrelate child. Excluded until the rule learns to mark the child node.
+            ['Sort rule encountered unmarked child [LogicalCorrelate]', 'AE planner: Sort rule cannot handle LogicalCorrelate child (correlated-subquery gap)'],
+            // mvappend uses ANY-typed lambdas that can't lower to Substrait — same family as
+            // mvexpand / mvcombine (class-excluded). Pattern is currently unique to the 4 failing
+            // CalciteMVAppendFunctionIT tests; the other 11 in that class measure mvappend basics
+            // that work on the analytics path and stay in the denominator.
+            ['Unable to convert the type ANY', 'mvappend ANY-typed lambda (lower priority on analytics engine — same family as transform/mvmap/reduce)'],
+            // CalciteDateTimeComparisonIT parameterized tests exercise the year 3077 boundary,
+            // which is outside OpenSearch core's supported timestamp range on the analytics route
+            // (stricter than legacy). Edge-of-domain test, not an engine bug.
+            ['is outside the supported range', 'OpenSearch core timestamp range edge (year 3077 — stricter on analytics route)'],
+            // Negative tests in CalcitePPLBasicIT.testInvalidTable / CalcitePPLPluginIT that
+            // intentionally query a non-existent index and assert the V2-style error
+            // ("no such index [X]") fail on the analytics route because the engine throws
+            // CalciteException("Table 'X' not found") instead — divergent error semantics.
+            ["Table 'unknown' not found", 'negative-test asserts V2 error message; analytics route uses Calcite-style "Table ... not found"'],
+            ["Table 'non_exist_index' not found", 'negative-test asserts V2 error message; analytics route uses Calcite-style "Table ... not found"'],
             // Metadata-field projection/where (e.g. fields _id, _index, _source). Not planned.
             ['Field [_id]',     'metadata field _id (not planning to support on analytics engine)'],
             ['Field [_index]',  'metadata field _index (not planning to support on analytics engine)'],
@@ -1369,14 +1393,10 @@ task analyticsCompatibilityReport {
             ['Field [aws]',      'nested-object root (not planning to support on analytics engine)'],
             ['Field [agent]',    'nested-object root (not planning to support on analytics engine)'],
             ['Field [log]',      'nested-object root (not planning to support on analytics engine)'],
-            // With cluster.pluggable.dataformat=composite enabled, MetadataCreateIndexService
-            // auto-stamps every new index as composite; the composite/parquet format rejects
-            // nested-typed fields at index creation. The test setup PUT fails with HTTP 400 before
-            // any query runs, so the test class is unrunnable on the analytics-engine route.
-            ['nested type is not supported with pluggable data format', 'nested-typed field (rejected by composite format at index creation)'],
-            // Alias mappings are implemented as derived source fields in OpenSearch — also rejected
-            // by composite at index creation, again before any query runs.
-            ['Derived source field is not supported for', 'alias mapping derived-source field (rejected by composite format at index creation)']
+            // TestUtils.AnalyticsIndexConfig.applyIndexCreationSettings rewrites composite-
+            // incompatible mappings before PUT: `nested` is demoted to implicit `object` (sub-paths
+            // stay resolvable on parquet), `alias` is dropped. Tests that query an aliased field
+            // surface as a legitimate "Field [X] not found" caught by the per-field patterns above.
         ]
         // Accumulators populated during XML scan, rendered in the "Out of scope" section.
         def outOfScopeClassCounts = new java.util.LinkedHashMap<String, int[]>()
