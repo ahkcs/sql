@@ -1328,7 +1328,11 @@ task analyticsCompatibilityReport {
             'org.opensearch.sql.calcite.remote.CalciteGeoIpFunctionsIT',            // geo-IP enrichment (lower priority)
             // Aggregate suite of in-progress new commands — covered piecemeal by the
             // per-command ITs (parse, rex, patterns, …) that already feed the report.
-            'org.opensearch.sql.calcite.remote.CalciteNewAddedCommandsIT'
+            'org.opensearch.sql.calcite.remote.CalciteNewAddedCommandsIT',
+            // Commands deferred on the analytics-engine route.
+            'org.opensearch.sql.calcite.remote.CalcitePPLJoinIT',                    // join (deferred)
+            'org.opensearch.sql.calcite.remote.CalciteStreamstatsCommandIT',         // streamstats (deferred)
+            'org.opensearch.sql.calcite.remote.CalciteSearchCommandIT'               // search command (deferred)
             // NOTE: patterns / parse / rex / grok are IN scope on analytics-engine.
             //   CalcitePPLPatternsIT, CalcitePPLDashboardPatternsIT, CalciteParseCommandIT,
             //   CalcitePPLParseIT, CalciteRexCommandIT, CalcitePPLGrokIT — keep them in the
@@ -1364,7 +1368,15 @@ task analyticsCompatibilityReport {
             ['Field [machine.os', 'nested-object field path (not planning to support on analytics engine)'],
             ['Field [aws]',      'nested-object root (not planning to support on analytics engine)'],
             ['Field [agent]',    'nested-object root (not planning to support on analytics engine)'],
-            ['Field [log]',      'nested-object root (not planning to support on analytics engine)']
+            ['Field [log]',      'nested-object root (not planning to support on analytics engine)'],
+            // With cluster.pluggable.dataformat=composite enabled, MetadataCreateIndexService
+            // auto-stamps every new index as composite; the composite/parquet format rejects
+            // nested-typed fields at index creation. The test setup PUT fails with HTTP 400 before
+            // any query runs, so the test class is unrunnable on the analytics-engine route.
+            ['nested type is not supported with pluggable data format', 'nested-typed field (rejected by composite format at index creation)'],
+            // Alias mappings are implemented as derived source fields in OpenSearch — also rejected
+            // by composite at index creation, again before any query runs.
+            ['Derived source field is not supported for', 'alias mapping derived-source field (rejected by composite format at index creation)']
         ]
         // Accumulators populated during XML scan, rendered in the "Out of scope" section.
         def outOfScopeClassCounts = new java.util.LinkedHashMap<String, int[]>()
