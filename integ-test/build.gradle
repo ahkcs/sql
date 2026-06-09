@@ -1375,6 +1375,9 @@ task analyticsCompatibilityReport {
             // CalciteException("Table 'X' not found") instead — divergent error semantics.
             ["Table 'unknown' not found", 'negative-test asserts V2 error message; analytics route uses Calcite-style "Table ... not found"'],
             ["Table 'non_exist_index' not found", 'negative-test asserts V2 error message; analytics route uses Calcite-style "Table ... not found"'],
+            // Per-doc DELETE not supported on parquet-backed indices by design — drop tests that
+            // happen to issue one (composite/parquet has no row-delete primitive).
+            ['delete operation not supported', 'DELETE /_doc not supported on parquet-backed indices (composite format has no row-delete primitive)'],
             // Metadata-field projection/where (e.g. fields _id, _index, _source). Not planned.
             ['Field [_id]',     'metadata field _id (not planning to support on analytics engine)'],
             ['Field [_index]',  'metadata field _index (not planning to support on analytics engine)'],
