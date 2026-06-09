@@ -1365,10 +1365,6 @@ task analyticsCompatibilityReport {
             // CalciteMVAppendFunctionIT tests; the other 11 in that class measure mvappend basics
             // that work on the analytics path and stay in the denominator.
             ['Unable to convert the type ANY', 'mvappend ANY-typed lambda (lower priority on analytics engine — same family as transform/mvmap/reduce)'],
-            // CalciteDateTimeComparisonIT parameterized tests exercise the year 3077 boundary,
-            // which is outside OpenSearch core's supported timestamp range on the analytics route
-            // (stricter than legacy). Edge-of-domain test, not an engine bug.
-            ['is outside the supported range', 'OpenSearch core timestamp range edge (year 3077 — stricter on analytics route)'],
             // Negative tests in CalcitePPLBasicIT.testInvalidTable / CalcitePPLPluginIT that
             // intentionally query a non-existent index and assert the V2-style error
             // ("no such index [X]") fail on the analytics route because the engine throws
