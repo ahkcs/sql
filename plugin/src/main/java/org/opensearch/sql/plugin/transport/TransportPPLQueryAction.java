@@ -183,6 +183,9 @@ public class TransportPPLQueryAction
     // Only the JSON response shape carries a warnings channel. Features that return a
     // knowingly-partial result gate on this so they never silently drop data into CSV/RAW/VIZ.
     QueryContext.setWarningsSupported(warningsSupported(transformedRequest));
+    // Per-request partial-result override (e.g. from a Dashboards toggle); null defers to the
+    // cluster setting.
+    QueryContext.setPartialResultOverride(transformedRequest.partialResult());
     ActionListener<TransportPPLQueryResponse> clearingListener = wrapWithProfilingClear(listener);
 
     // Route to analytics engine for non-Lucene (e.g., Parquet-backed) indices.
