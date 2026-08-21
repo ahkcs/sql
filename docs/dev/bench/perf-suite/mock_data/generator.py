@@ -12,6 +12,7 @@ import json
 import random
 
 from . import distributions as dist
+from . import wide_schema
 
 METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH"]
 URIS = ["/", "/checkout", "/cart", "/api/v1/orders", "/api/v1/users", "/health",
@@ -194,16 +195,34 @@ def build_doc(rng, sourcetype=None):
     }
 
 
-def build_doc_at(seed, i, sourcetype=None):
+def _set_path(doc, path, value):
+    """Set a dotted path into a nested doc dict, creating intermediate objects."""
+    node = doc
+    for part in path.split(".")[:-1]:
+        node = node.setdefault(part, {})
+    node[path.split(".")[-1]] = value
+
+
+def build_doc_at(seed, i, sourcetype=None, wide=False):
     """Deterministic doc for global index i under `seed`, independent of order.
     Seeding per-i (not one sequential RNG) lets parallel workers reproduce the
     exact same stream that expected.py tallies. The multiplier spaces per-index
-    seeds far apart so no (seed, i) pair collides at realistic scale."""
-    return build_doc(random.Random(seed * 2_000_000_000 + i), sourcetype)
+    seeds far apart so no (seed, i) pair collides at realistic scale.
+
+    wide=True adds sparse synthetic columns under attributes.*/resource.attributes.*
+    (the ~3000-field stress schema); the RNG stream continues from build_doc so
+    it stays deterministic."""
+    rng = random.Random(seed * 2_000_000_000 + i)
+    doc = build_doc(rng, sourcetype)
+    if wide:
+        for path, val in wide_schema.draw_extras(rng).items():
+            _set_path(doc, path, val)
+    return doc
 
 
-def generate(n, seed=42, sourcetype=None):
+def generate(n, seed=42, sourcetype=None, wide=False):
     """Yield n deterministic docs. Fix sourcetype for a single-format index, or
-    None for the multi-format index (sourcetype drawn per-doc)."""
+    None for the multi-format index (sourcetype drawn per-doc). wide=True emits
+    the ~3000-field sparse-attribute variant."""
     for i in range(n):
-        yield build_doc_at(seed, i, sourcetype)
+        yield build_doc_at(seed, i, sourcetype, wide)

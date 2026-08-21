@@ -22,7 +22,7 @@ import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from urllib.parse import urlsplit
 
-from . import generator, load
+from . import generator, load, wide_schema
 from .indices import index_docs, seed_for
 
 BATCH_DOCS = 2000
@@ -39,7 +39,7 @@ def _connect(host):
 def _worker(task):
     """Load doc indices [lo, hi) of one index over a persistent connection.
     Returns (index, loaded_count, error_or_None)."""
-    host, index, sourcetype, seed, lo, hi, auth_hdr = task
+    host, index, sourcetype, seed, lo, hi, auth_hdr, wide = task
     headers = {"Content-Type": "application/json"}
     if auth_hdr:
         headers["Authorization"] = auth_hdr
@@ -70,7 +70,7 @@ def _worker(task):
     batch, count = [], 0
     for i in range(lo, hi):
         batch.append('{"index":{"_id":"%d"}}' % i)
-        batch.append(json.dumps(generator.build_doc_at(seed, i, sourcetype)))
+        batch.append(json.dumps(generator.build_doc_at(seed, i, sourcetype, wide)))
         if len(batch) >= BATCH_DOCS * 2:
             err = flush("\n".join(batch) + "\n")
             if err:
@@ -88,13 +88,13 @@ def _worker(task):
     return (index, count, None)
 
 
-def _build_tasks(host, plan, workers, seed, auth_hdr):
+def _build_tasks(host, plan, workers, seed, auth_hdr, wide=False):
     """Split each index's [0,n) into ~workers contiguous slices."""
     tasks = []
     for name, (st, n) in plan.items():
         step = max(1, math.ceil(n / workers))
         for lo in range(0, n, step):
-            tasks.append((host, name, st, seed_for(name, seed), lo, min(lo + step, n), auth_hdr))
+            tasks.append((host, name, st, seed_for(name, seed), lo, min(lo + step, n), auth_hdr, wide))
     return tasks
 
 
@@ -110,13 +110,14 @@ def main():
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--only", action="append")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--wide", action="store_true", help="~3000-field wide stress schema")
     args = ap.parse_args()
 
     plan = index_docs(args.scale_divisor, args.docs_per_index)
     if args.only:
         plan = {k: v for k, v in plan.items() if k in set(args.only)}
     auth_hdr = ("Basic " + base64.b64encode(args.auth.encode()).decode()) if args.auth else None
-    tasks = _build_tasks(args.host, plan, args.workers, args.seed, auth_hdr)
+    tasks = _build_tasks(args.host, plan, args.workers, args.seed, auth_hdr, args.wide)
 
     if args.dry_run:
         for name, (st, n) in plan.items():
@@ -128,9 +129,10 @@ def main():
               % (len(plan), sum(n for _, n in plan.values()), len(tasks), args.workers))
         return
 
-    mappings = load.load_mappings()
+    mappings = load.load_mappings(wide_schema.WIDE_TEMPLATE if args.wide else load.SCHEMA)
+    tfl = wide_schema.TOTAL_FIELDS_LIMIT if args.wide else 2000
     for name in plan:
-        load.create_index(args.host, name, mappings, args.shards, args.replicas, args.auth)
+        load.create_index(args.host, name, mappings, args.shards, args.replicas, args.auth, total_fields_limit=tfl)
 
     totals, errors, t0 = {}, [], time.time()
     with ProcessPoolExecutor(max_workers=args.workers) as ex:

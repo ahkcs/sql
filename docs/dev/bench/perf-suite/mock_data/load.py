@@ -25,7 +25,7 @@ import time
 import urllib.error
 import urllib.request
 
-from . import generator
+from . import generator, wide_schema
 from .indices import index_docs, seed_for
 
 SCHEMA = os.path.join(os.path.dirname(__file__), "schemas", "mock-index-template.json")
@@ -59,17 +59,17 @@ def req(method, url, body=None, auth=None, retries=5):
     return -1, "transient after %d retries: %s" % (retries, last)
 
 
-def load_mappings():
-    with open(SCHEMA) as f:
+def load_mappings(path=SCHEMA):
+    with open(path) as f:
         tpl = json.load(f)
     return tpl["template"]["mappings"]
 
 
-def create_index(host, index, mappings, shards, replicas, auth):
+def create_index(host, index, mappings, shards, replicas, auth, total_fields_limit=2000):
     req("DELETE", "%s/%s" % (host, index), auth=auth)
     body = json.dumps({
         "settings": {"number_of_shards": shards, "number_of_replicas": replicas,
-                     "refresh_interval": "-1", "index.mapping.total_fields.limit": 2000},
+                     "refresh_interval": "-1", "index.mapping.total_fields.limit": total_fields_limit},
         "mappings": mappings,
     })
     status, resp = req("PUT", "%s/%s" % (host, index), body, auth=auth)
@@ -78,11 +78,11 @@ def create_index(host, index, mappings, shards, replicas, auth):
         sys.exit(1)
 
 
-def bulk_load(host, index, sourcetype, ndocs, seed, auth):
+def bulk_load(host, index, sourcetype, ndocs, seed, auth, wide=False):
     batch, done = [], 0
     # deterministic _id per doc -> a retried batch upserts (no dupes), and the
     # whole load is re-runnable without inflating counts.
-    for i, doc in enumerate(generator.generate(ndocs, seed=seed, sourcetype=sourcetype)):
+    for i, doc in enumerate(generator.generate(ndocs, seed=seed, sourcetype=sourcetype, wide=wide)):
         batch.append('{"index":{"_id":"%d"}}' % i)
         batch.append(json.dumps(doc))
         if len(batch) >= BATCH_DOCS * 2:
@@ -120,6 +120,7 @@ def main():
     ap.add_argument("--replicas", type=int, default=0)
     ap.add_argument("--only", action="append", help="restrict to these index names")
     ap.add_argument("--dry-run", action="store_true", help="print a sample doc, no HTTP")
+    ap.add_argument("--wide", action="store_true", help="~3000-field wide stress schema")
     args = ap.parse_args()
 
     plan = index_docs(args.scale_divisor, args.docs_per_index)
@@ -130,18 +131,19 @@ def main():
 
     if args.dry_run:
         for name, (st, n) in plan.items():
-            sample = next(generator.generate(1, seed=seed_for(name, args.seed), sourcetype=st))
+            sample = next(generator.generate(1, seed=seed_for(name, args.seed), sourcetype=st, wide=args.wide))
             print("== %s  sourcetype=%s  docs=%d ==" % (name, st, n))
             print(json.dumps(sample, indent=2)[:1400])
         print("\nDRY RUN: %d indices, %d docs total"
               % (len(plan), sum(n for _, n in plan.values())))
         return
 
-    mappings = load_mappings()
+    mappings = load_mappings(wide_schema.WIDE_TEMPLATE if args.wide else SCHEMA)
+    tfl = wide_schema.TOTAL_FIELDS_LIMIT if args.wide else 2000
     total = 0
     for name, (st, n) in plan.items():
-        create_index(args.host, name, mappings, args.shards, args.replicas, args.auth)
-        loaded = bulk_load(args.host, name, st, n, seed_for(name, args.seed), args.auth)
+        create_index(args.host, name, mappings, args.shards, args.replicas, args.auth, total_fields_limit=tfl)
+        loaded = bulk_load(args.host, name, st, n, seed_for(name, args.seed), args.auth, wide=args.wide)
         req("POST", "%s/%s/_refresh" % (args.host, name), auth=args.auth)
         total += loaded
         print("  seeded %s (%d docs, sourcetype=%s)" % (name, loaded, st))
