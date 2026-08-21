@@ -110,14 +110,15 @@ def main():
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--only", action="append")
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--wide", action="store_true", help="~3000-field wide stress schema")
+    ap.add_argument("--narrow", action="store_true",
+                    help="use the 75-field base instead of the default ~3000-field wide schema")
     args = ap.parse_args()
 
     plan = index_docs(args.scale_divisor, args.docs_per_index)
     if args.only:
         plan = {k: v for k, v in plan.items() if k in set(args.only)}
     auth_hdr = ("Basic " + base64.b64encode(args.auth.encode()).decode()) if args.auth else None
-    tasks = _build_tasks(args.host, plan, args.workers, args.seed, auth_hdr, args.wide)
+    tasks = _build_tasks(args.host, plan, args.workers, args.seed, auth_hdr, not args.narrow)
 
     if args.dry_run:
         for name, (st, n) in plan.items():
@@ -129,8 +130,8 @@ def main():
               % (len(plan), sum(n for _, n in plan.values()), len(tasks), args.workers))
         return
 
-    mappings = load.load_mappings(wide_schema.WIDE_TEMPLATE if args.wide else load.SCHEMA)
-    tfl = wide_schema.TOTAL_FIELDS_LIMIT if args.wide else 2000
+    mappings = load.load_mappings(load.SCHEMA if args.narrow else wide_schema.WIDE_TEMPLATE)
+    tfl = 2000 if args.narrow else wide_schema.TOTAL_FIELDS_LIMIT
     for name in plan:
         load.create_index(args.host, name, mappings, args.shards, args.replicas, args.auth, total_fields_limit=tfl)
 

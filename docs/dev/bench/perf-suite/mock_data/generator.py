@@ -203,15 +203,17 @@ def _set_path(doc, path, value):
     node[path.split(".")[-1]] = value
 
 
-def build_doc_at(seed, i, sourcetype=None, wide=False):
+def build_doc_at(seed, i, sourcetype=None, wide=True):
     """Deterministic doc for global index i under `seed`, independent of order.
     Seeding per-i (not one sequential RNG) lets parallel workers reproduce the
     exact same stream that expected.py tallies. The multiplier spaces per-index
     seeds far apart so no (seed, i) pair collides at realistic scale.
 
-    wide=True adds sparse synthetic columns under attributes.*/resource.attributes.*
-    (the ~3000-field stress schema); the RNG stream continues from build_doc so
-    it stays deterministic."""
+    wide=True (DEFAULT) adds sparse synthetic columns under attributes.*/
+    resource.attributes.* (the ~3000-field stress schema — the only variant we
+    test); the RNG stream continues from build_doc so it stays deterministic.
+    wide=False yields the 75-field base (kept only for the narrow escape hatch;
+    base field values are identical either way, so correctness is unaffected)."""
     rng = random.Random(seed * 2_000_000_000 + i)
     doc = build_doc(rng, sourcetype)
     if wide:
@@ -220,9 +222,9 @@ def build_doc_at(seed, i, sourcetype=None, wide=False):
     return doc
 
 
-def generate(n, seed=42, sourcetype=None, wide=False):
+def generate(n, seed=42, sourcetype=None, wide=True):
     """Yield n deterministic docs. Fix sourcetype for a single-format index, or
-    None for the multi-format index (sourcetype drawn per-doc). wide=True emits
-    the ~3000-field sparse-attribute variant."""
+    None for the multi-format index (sourcetype drawn per-doc). wide=True (DEFAULT)
+    emits the ~3000-field sparse-attribute variant; wide=False = 75-field base."""
     for i in range(n):
         yield build_doc_at(seed, i, sourcetype, wide)

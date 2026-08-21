@@ -120,7 +120,8 @@ def main():
     ap.add_argument("--replicas", type=int, default=0)
     ap.add_argument("--only", action="append", help="restrict to these index names")
     ap.add_argument("--dry-run", action="store_true", help="print a sample doc, no HTTP")
-    ap.add_argument("--wide", action="store_true", help="~3000-field wide stress schema")
+    ap.add_argument("--narrow", action="store_true",
+                    help="use the 75-field base instead of the default ~3000-field wide schema")
     args = ap.parse_args()
 
     plan = index_docs(args.scale_divisor, args.docs_per_index)
@@ -131,19 +132,19 @@ def main():
 
     if args.dry_run:
         for name, (st, n) in plan.items():
-            sample = next(generator.generate(1, seed=seed_for(name, args.seed), sourcetype=st, wide=args.wide))
+            sample = next(generator.generate(1, seed=seed_for(name, args.seed), sourcetype=st, wide=not args.narrow))
             print("== %s  sourcetype=%s  docs=%d ==" % (name, st, n))
             print(json.dumps(sample, indent=2)[:1400])
         print("\nDRY RUN: %d indices, %d docs total"
               % (len(plan), sum(n for _, n in plan.values())))
         return
 
-    mappings = load_mappings(wide_schema.WIDE_TEMPLATE if args.wide else SCHEMA)
-    tfl = wide_schema.TOTAL_FIELDS_LIMIT if args.wide else 2000
+    mappings = load_mappings(SCHEMA if args.narrow else wide_schema.WIDE_TEMPLATE)
+    tfl = 2000 if args.narrow else wide_schema.TOTAL_FIELDS_LIMIT
     total = 0
     for name, (st, n) in plan.items():
         create_index(args.host, name, mappings, args.shards, args.replicas, args.auth, total_fields_limit=tfl)
-        loaded = bulk_load(args.host, name, st, n, seed_for(name, args.seed), args.auth, wide=args.wide)
+        loaded = bulk_load(args.host, name, st, n, seed_for(name, args.seed), args.auth, wide=not args.narrow)
         req("POST", "%s/%s/_refresh" % (args.host, name), auth=args.auth)
         total += loaded
         print("  seeded %s (%d docs, sourcetype=%s)" % (name, loaded, st))
