@@ -1,0 +1,67 @@
+{
+  "host": "https://search-ppl-perf-tier2-sandbox-n6rcndv3ezrjcokhhjm7l6lzdq.us-east-1.es.amazonaws.com",
+  "time_range": "1h",
+  "work_size": 22,
+  "l1_ladder": [
+    {
+      "n": 22,
+      "ok": 22,
+      "pass_rate": 1.0,
+      "err_timeout_rate": 0.0,
+      "avg_s": 0.576,
+      "p95_s": 1.427,
+      "max_s": 1.66,
+      "concurrency": 2,
+      "cpu_max_pct": 14,
+      "heap_max_pct": 30,
+      "search_queue_peak": 0,
+      "rejected_delta": 0
+    },
+    {
+      "n": 22,
+      "ok": 22,
+      "pass_rate": 1.0,
+      "err_timeout_rate": 0.0,
+      "avg_s": 0.516,
+      "p95_s": 1.241,
+      "max_s": 1.447,
+      "concurrency": 4,
+      "cpu_max_pct": 17,
+      "heap_max_pct": 32,
+      "search_queue_peak": 0,
+      "rejected_delta": 0
+    }
+  ],
+  "l2_ramp": {
+    "rungs": [
+      {
+        "n": 10,
+        "ok": 10,
+        "pass_rate": 1.0,
+        "err_timeout_rate": 0.0,
+        "avg_s": 0.393,
+        "p95_s": 0.64,
+        "max_s": 0.693,
+        "concurrency": 5,
+        "cpu_max_pct": 22,
+        "heap_max_pct": 33,
+        "search_queue_peak": 0,
+        "rejected_delta": 0
+      }
+    ],
+    "breaking_point": null
+  },
+  "l3_sustained": {
+    "concurrency": 4,
+    "duration_s": 30,
+    "n": 225,
+    "ok": 222,
+    "pass_rate": 0.9867,
+    "err_timeout_rate": 0.0133,
+    "avg_s": 0.547,
+    "p95_s": 1.61,
+    "max_s": 2.971,
+    "latency_drift_pct": 63.9,
+    "heap_growth_pct": 11
+  }
+}

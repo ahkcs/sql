@@ -1,0 +1,564 @@
+{
+  ".ds-logs-pr000410-standard-ds-defaultv1-000033" : {
+    "mappings" : {
+      "_data_stream_timestamp" : {
+        "enabled" : true
+      },
+      "dynamic_templates" : [
+        {
+          "resource_attributes" : {
+            "path_match" : "resource.attributes.*",
+            "match_mapping_type" : "string",
+            "mapping" : {
+              "type" : "keyword"
+            }
+          }
+        },
+        {
+          "attributes" : {
+            "path_match" : "attributes.*",
+            "match_mapping_type" : "string",
+            "mapping" : {
+              "type" : "keyword"
+            }
+          }
+        },
+        {
+          "log_fields_string" : {
+            "path_match" : "log.**",
+            "match_mapping_type" : "string",
+            "mapping" : {
+              "fields" : {
+                "keyword" : {
+                  "ignore_above" : 256,
+                  "type" : "keyword"
+                }
+              },
+              "norms" : false,
+              "type" : "text"
+            }
+          }
+        },
+        {
+          "log_fields_object" : {
+            "path_match" : "log.**",
+            "match_mapping_type" : "object",
+            "mapping" : {
+              "type" : "object"
+            }
+          }
+        },
+        {
+          "log_fields_non_string" : {
+            "path_match" : "log.**",
+            "mapping" : {
+              "type" : "keyword"
+            }
+          }
+        }
+      ],
+      "properties" : {
+        "@timestamp" : {
+          "type" : "date"
+        },
+        "@version" : {
+          "type" : "keyword"
+        },
+        "attributes" : {
+          "properties" : {
+            "cluster" : {
+              "properties" : {
+                "env" : {
+                  "type" : "keyword"
+                },
+                "name" : {
+                  "type" : "keyword"
+                },
+                "region" : {
+                  "type" : "keyword"
+                }
+              }
+            },
+            "log" : {
+              "properties" : {
+                "file" : {
+                  "properties" : {
+                    "path" : {
+                      "type" : "keyword"
+                    }
+                  }
+                }
+              }
+            },
+            "logtag" : {
+              "type" : "keyword"
+            },
+            "obs_body_length" : {
+              "type" : "long"
+            },
+            "stream" : {
+              "type" : "keyword"
+            },
+            "time" : {
+              "type" : "object",
+              "enabled" : false
+            }
+          }
+        },
+        "body" : {
+          "type" : "text",
+          "norms" : false
+        },
+        "droppedAttributesCount" : {
+          "type" : "long"
+        },
+        "flags" : {
+          "type" : "byte"
+        },
+        "instrumentationScope" : {
+          "properties" : {
+            "droppedAttributesCount" : {
+              "type" : "long"
+            }
+          }
+        },
+        "log" : {
+          "properties" : {
+            "@timestamp" : {
+              "type" : "keyword"
+            },
+            "contentLength" : {
+              "type" : "text",
+              "fields" : {
+                "keyword" : {
+                  "type" : "keyword",
+                  "ignore_above" : 256
+                }
+              },
+              "norms" : false
+            },
+            "ecs" : {
+              "properties" : {
+                "version" : {
+                  "type" : "text",
+                  "fields" : {
+                    "keyword" : {
+                      "type" : "keyword",
+                      "ignore_above" : 256
+                    }
+                  },
+                  "norms" : false
+                }
+              }
+            },
+            "error" : {
+              "properties" : {
+                "message" : {
+                  "type" : "text",
+                  "fields" : {
+                    "keyword" : {
+                      "type" : "keyword",
+                      "ignore_above" : 256
+                    }
+                  },
+                  "norms" : false
+                },
+                "stack_trace" : {
+                  "type" : "text",
+                  "fields" : {
+                    "keyword" : {
+                      "type" : "keyword",
+                      "ignore_above" : 256
+                    }
+                  },
+                  "norms" : false
+                },
+                "type" : {
+                  "type" : "text",
+                  "fields" : {
+                    "keyword" : {
+                      "type" : "keyword",
+                      "ignore_above" : 256
+                    }
+                  },
+                  "norms" : false
+                }
+              }
+            },
+            "headers" : {
+              "properties" : {
+                "AppId" : {
+                  "type" : "text",
+                  "fields" : {
+                    "keyword" : {
+                      "type" : "keyword",
+                      "ignore_above" : 256
+                    }
+                  },
+                  "norms" : false
+                },
+                "Referer" : {
+                  "type" : "text",
+                  "fields" : {
+                    "keyword" : {
+                      "type" : "keyword",
+                      "ignore_above" : 256
+                    }
+                  },
+                  "norms" : false
+                },
+                "User-Agent" : {
+                  "type" : "text",
+                  "fields" : {
+                    "keyword" : {
+                      "type" : "keyword",
+                      "ignore_above" : 256
+                    }
+                  },
+                  "norms" : false
+                },
+                "fid-log-tracking-id" : {
+                  "type" : "text",
+                  "fields" : {
+                    "keyword" : {
+                      "type" : "keyword",
+                      "ignore_above" : 256
+                    }
+                  },
+                  "norms" : false
+                },
+                "fsreqid" : {
+                  "type" : "text",
+                  "fields" : {
+                    "keyword" : {
+                      "type" : "keyword",
+                      "ignore_above" : 256
+                    }
+                  },
+                  "norms" : false
+                }
+              }
+            },
+            "log" : {
+              "properties" : {
+                "level" : {
+                  "type" : "text",
+                  "fields" : {
+                    "keyword" : {
+                      "type" : "keyword",
+                      "ignore_above" : 256
+                    }
+                  },
+                  "norms" : false
+                },
+                "logger" : {
+                  "type" : "text",
+                  "fields" : {
+                    "keyword" : {
+                      "type" : "keyword",
+                      "ignore_above" : 256
+                    }
+                  },
+                  "norms" : false
+                }
+              }
+            },
+            "mdc" : {
+              "type" : "object"
+            },
+            "message" : {
+              "type" : "text",
+              "fields" : {
+                "keyword" : {
+                  "type" : "keyword",
+                  "ignore_above" : 256
+                }
+              },
+              "norms" : false
+            },
+            "method" : {
+              "type" : "text",
+              "fields" : {
+                "keyword" : {
+                  "type" : "keyword",
+                  "ignore_above" : 256
+                }
+              },
+              "norms" : false
+            },
+            "process" : {
+              "properties" : {
+                "thread" : {
+                  "properties" : {
+                    "name" : {
+                      "type" : "text",
+                      "fields" : {
+                        "keyword" : {
+                          "type" : "keyword",
+                          "ignore_above" : 256
+                        }
+                      },
+                      "norms" : false
+                    }
+                  }
+                }
+              }
+            },
+            "protocol" : {
+              "type" : "text",
+              "fields" : {
+                "keyword" : {
+                  "type" : "keyword",
+                  "ignore_above" : 256
+                }
+              },
+              "norms" : false
+            },
+            "remoteAddress" : {
+              "type" : "text",
+              "fields" : {
+                "keyword" : {
+                  "type" : "keyword",
+                  "ignore_above" : 256
+                }
+              },
+              "norms" : false
+            },
+            "remoteHost" : {
+              "type" : "text",
+              "fields" : {
+                "keyword" : {
+                  "type" : "keyword",
+                  "ignore_above" : 256
+                }
+              },
+              "norms" : false
+            },
+            "requestTime" : {
+              "type" : "text",
+              "fields" : {
+                "keyword" : {
+                  "type" : "keyword",
+                  "ignore_above" : 256
+                }
+              },
+              "norms" : false
+            },
+            "serverName" : {
+              "type" : "text",
+              "fields" : {
+                "keyword" : {
+                  "type" : "keyword",
+                  "ignore_above" : 256
+                }
+              },
+              "norms" : false
+            },
+            "status" : {
+              "type" : "text",
+              "fields" : {
+                "keyword" : {
+                  "type" : "keyword",
+                  "ignore_above" : 256
+                }
+              },
+              "norms" : false
+            },
+            "timestamp" : {
+              "type" : "object",
+              "enabled" : false
+            },
+            "uri" : {
+              "type" : "text",
+              "fields" : {
+                "keyword" : {
+                  "type" : "keyword",
+                  "ignore_above" : 256
+                }
+              },
+              "norms" : false
+            }
+          }
+        },
+        "observedTimestamp" : {
+          "type" : "date"
+        },
+        "resource" : {
+          "properties" : {
+            "attributes" : {
+              "properties" : {
+                "applicationid" : {
+                  "type" : "keyword"
+                },
+                "cio_organization" : {
+                  "type" : "keyword"
+                },
+                "cloud" : {
+                  "properties" : {
+                    "account" : {
+                      "properties" : {
+                        "id" : {
+                          "type" : "keyword"
+                        }
+                      }
+                    },
+                    "availability_zone" : {
+                      "type" : "keyword"
+                    },
+                    "region" : {
+                      "type" : "keyword"
+                    }
+                  }
+                },
+                "container" : {
+                  "properties" : {
+                    "image" : {
+                      "properties" : {
+                        "name" : {
+                          "type" : "keyword"
+                        }
+                      }
+                    }
+                  }
+                },
+                "criticality_code" : {
+                  "type" : "keyword"
+                },
+                "host" : {
+                  "properties" : {
+                    "id" : {
+                      "type" : "keyword"
+                    },
+                    "name" : {
+                      "type" : "keyword"
+                    }
+                  }
+                },
+                "k8s" : {
+                  "properties" : {
+                    "cluster" : {
+                      "properties" : {
+                        "business" : {
+                          "properties" : {
+                            "unit" : {
+                              "type" : "keyword"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "container" : {
+                      "properties" : {
+                        "name" : {
+                          "type" : "keyword"
+                        }
+                      }
+                    },
+                    "namespace" : {
+                      "properties" : {
+                        "name" : {
+                          "type" : "keyword"
+                        }
+                      }
+                    },
+                    "node" : {
+                      "properties" : {
+                        "name" : {
+                          "type" : "keyword"
+                        }
+                      }
+                    },
+                    "pod" : {
+                      "properties" : {
+                        "name" : {
+                          "type" : "keyword"
+                        }
+                      }
+                    }
+                  }
+                },
+                "k8s_label" : {
+                  "properties" : {
+                    "applicationid" : {
+                      "type" : "keyword"
+                    },
+                    "criticality_code" : {
+                      "type" : "keyword"
+                    },
+                    "productid" : {
+                      "type" : "keyword"
+                    },
+                    "sourcetype" : {
+                      "type" : "keyword"
+                    }
+                  }
+                },
+                "log_tier" : {
+                  "type" : "keyword"
+                },
+                "obs_namespace" : {
+                  "type" : "keyword"
+                },
+                "opensearch_index" : {
+                  "type" : "keyword"
+                },
+                "pipeline_id" : {
+                  "type" : "keyword"
+                },
+                "pipeline_name" : {
+                  "type" : "keyword"
+                },
+                "productid" : {
+                  "type" : "keyword"
+                },
+                "service" : {
+                  "properties" : {
+                    "name" : {
+                      "type" : "keyword"
+                    }
+                  }
+                },
+                "sourcetype" : {
+                  "type" : "keyword"
+                }
+              }
+            },
+            "droppedAttributesCount" : {
+              "type" : "long"
+            },
+            "schemaUrl" : {
+              "type" : "text",
+              "fields" : {
+                "keyword" : {
+                  "type" : "keyword",
+                  "ignore_above" : 256
+                }
+              }
+            }
+          }
+        },
+        "schemaUrl" : {
+          "type" : "keyword"
+        },
+        "serviceName" : {
+          "type" : "keyword"
+        },
+        "severityNumber" : {
+          "type" : "integer"
+        },
+        "severityText" : {
+          "type" : "keyword"
+        },
+        "spanId" : {
+          "type" : "keyword"
+        },
+        "time" : {
+          "type" : "date"
+        },
+        "traceId" : {
+          "type" : "keyword"
+        }
+      }
+    }
+  }
+}

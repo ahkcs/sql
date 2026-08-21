@@ -1,0 +1,58 @@
+# Tier-1 local dev cluster (plan §3.1/§3.5): 1 coordinator + 3 data, OS >= 2.18,
+# security plugin disabled (HTTP, no auth) for a fast dev loop, plus a single-node
+# local observability sink. Bump OS_VERSION to match Tier-2 (OpenSearch 3.5) for fidelity.
+#
+#   make up && make load && make test-local
+x-node: &node
+  image: opensearchproject/opensearch:${OS_VERSION:-2.18.0}
+  environment: &env
+    cluster.name: ppl-perf-local
+    discovery.seed_hosts: os-d1,os-d2,os-d3,os-coord
+    cluster.initial_cluster_manager_nodes: os-d1
+    bootstrap.memory_lock: "true"
+    DISABLE_SECURITY_PLUGIN: "true"
+    DISABLE_INSTALL_DEMO_CONFIG: "true"
+    OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+  ulimits:
+    memlock: { soft: -1, hard: -1 }
+    nofile: { soft: 65536, hard: 65536 }
+  networks: [ppl]
+
+services:
+  os-d1:
+    <<: *node
+    container_name: os-d1
+    environment:
+      <<: *env
+      node.name: os-d1
+      node.roles: '[cluster_manager,data,ingest]'
+    ports: ["9200:9200"]
+  os-d2:
+    <<: *node
+    container_name: os-d2
+    environment: { <<: *env, node.name: os-d2, node.roles: '[data,ingest]' }
+  os-d3:
+    <<: *node
+    container_name: os-d3
+    environment: { <<: *env, node.name: os-d3, node.roles: '[data,ingest]' }
+  os-coord:
+    <<: *node
+    container_name: os-coord
+    environment: { <<: *env, node.name: os-coord, node.roles: '[]' }  # coordinating-only
+
+  # Local observability sink (plan §3.5) — separate single-node cluster.
+  observability:
+    image: opensearchproject/opensearch:${OS_VERSION:-2.18.0}
+    container_name: observability
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+    ports: ["9201:9200"]
+    networks: [ppl]
+
+networks:
+  ppl:

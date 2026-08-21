@@ -1,0 +1,113 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Tier-2 authoritative PPL perf/load/use-case OpenSearch domain.
+  A scale-down of the customer obs-pi hot tier (see tier2-domain-spec.md):
+  per-node data / shard-size / instance-type held equal to prod; node-count
+  and total data divided by N. Defaults = N=8 (12 hot data nodes).
+
+Parameters:
+  DomainName:
+    Type: String
+    Default: ppl-perf-tier2
+  EngineVersion:
+    Type: String
+    Default: OpenSearch_3.5
+  DataInstanceType:
+    Type: String
+    Default: om2.4xlarge.search      # matches obs-pi hot tier; verify availability in-region
+  DataInstanceCount:
+    Type: Number
+    Default: 12                       # N=8 -> 96/8; MUST be a multiple of AZCount
+  MasterInstanceType:
+    Type: String
+    Default: r8g.large.search         # downsized from prod r8g.4xlarge (masters don't serve queries)
+  MasterInstanceCount:
+    Type: Number
+    Default: 3
+  AZCount:
+    Type: Number
+    Default: 3
+    AllowedValues: [2, 3]
+  VolumeSize:
+    Type: Number
+    Default: 3072                     # GB gp3 (match prod; ~1TB used, headroom + prod IO profile)
+  VolumeIops:
+    Type: Number
+    Default: 9216                     # match prod gp3 IOPS (IO-bound PPL)
+  VolumeThroughput:
+    Type: Number
+    Default: 1250                     # match prod gp3 MB/s
+  MasterUserName:
+    Type: String
+    Default: admin
+  MasterUserPassword:
+    Type: String
+    NoEcho: true                      # supplied at deploy time; never stored in the template
+    MinLength: 8
+    Description: FGAC master password (>=8 chars, upper+lower+number+special).
+
+Resources:
+  Domain:
+    Type: AWS::OpenSearchService::Domain
+    DeletionPolicy: Delete            # test cluster: tear down between runs (snapshot to S3 first)
+    Properties:
+      DomainName: !Ref DomainName
+      EngineVersion: !Ref EngineVersion
+      ClusterConfig:
+        InstanceType: !Ref DataInstanceType
+        InstanceCount: !Ref DataInstanceCount
+        DedicatedMasterEnabled: true
+        DedicatedMasterType: !Ref MasterInstanceType
+        DedicatedMasterCount: !Ref MasterInstanceCount
+        ZoneAwarenessEnabled: true
+        ZoneAwarenessConfig:
+          AvailabilityZoneCount: !Ref AZCount
+        MultiAZWithStandbyEnabled: false     # prod runs CapacityOptimized (standby off)
+        # NOTE: dedicated COORDINATOR nodes (prod has 12x m8g.4xlarge) are not expressible
+        # in CFN ClusterConfig today -> data nodes coordinate. Known fidelity gap; add via
+        # console/API or a CDK escape hatch if coordinator-reduce behaviour must match prod.
+        # UltraWarm + Cold intentionally dropped (hot-tier PPL only; 7-day mock window is all hot).
+      EBSOptions:
+        EBSEnabled: true
+        VolumeType: gp3
+        VolumeSize: !Ref VolumeSize
+        Iops: !Ref VolumeIops
+        Throughput: !Ref VolumeThroughput
+      EncryptionAtRestOptions:
+        Enabled: true                        # AWS-owned key (KmsKeyId omitted)
+      NodeToNodeEncryptionOptions:
+        Enabled: true
+      DomainEndpointOptions:
+        EnforceHTTPS: true
+        TLSSecurityPolicy: Policy-Min-TLS-1-2-PFS-2023-10
+      AdvancedSecurityOptions:               # FGAC internal user DB + public endpoint (mirrors os35)
+        Enabled: true
+        InternalUserDatabaseEnabled: true
+        MasterUserOptions:
+          MasterUserName: !Ref MasterUserName
+          MasterUserPassword: !Ref MasterUserPassword
+      AdvancedOptions:                        # match prod AdvancedOptions
+        "indices.fielddata.cache.size": "20"
+        "indices.query.bool.max_clause_count": "1024"
+        "override_main_response_version": "true"
+        "rest.action.multi.allow_explicit_index": "true"
+      OffPeakWindowOptions:
+        Enabled: true
+      SoftwareUpdateOptions:
+        AutoSoftwareUpdateEnabled: false
+      AccessPolicies:                         # FGAC gates real auth; open HTTPS access policy
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { AWS: "*" }
+            Action: "es:ESHttp*"
+            Resource: !Sub "arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/${DomainName}/*"
+
+Outputs:
+  DomainEndpoint:
+    Value: !GetAtt Domain.DomainEndpoint
+    Description: Use as https://<endpoint> with FGAC basic auth.
+  DashboardsURL:
+    Value: !Sub "https://${Domain.DomainEndpoint}/_dashboards"
+  Arn:
+    Value: !GetAtt Domain.Arn

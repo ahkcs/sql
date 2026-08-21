@@ -1,0 +1,116 @@
+{
+  "host": "https://search-ppl-perf-tier2-hfmrk3ra3wgzmo7vnp7juptyny.us-east-1.es.amazonaws.com",
+  "results": [
+    {
+      "scenario": "U1 dashboard refresh",
+      "wall_s": 0.104,
+      "avg_panel_s": 0.051,
+      "slowest_panel_s": 0.101,
+      "errors": 0,
+      "verdict": "GOOD"
+    },
+    {
+      "scenario": "U2 auto-refresh",
+      "refreshes": 3,
+      "p95_wall_s": 0.11,
+      "errors": 0,
+      "verdict": "GOOD"
+    },
+    {
+      "scenario": "U3 investigation session",
+      "steps": [
+        {
+          "step": 0,
+          "s": 0.04,
+          "ok": true
+        },
+        {
+          "step": 1,
+          "s": 1.336,
+          "ok": true
+        },
+        {
+          "step": 2,
+          "s": 1.366,
+          "ok": true
+        },
+        {
+          "step": 3,
+          "s": 0.11,
+          "ok": true
+        }
+      ],
+      "median_step_s": 0.723,
+      "slowest_step_s": 1.366,
+      "completed_ok": true,
+      "verdict": "GOOD"
+    },
+    {
+      "scenario": "U4 alert-rule",
+      "evaluations": 3,
+      "p95_s": 0.032,
+      "missed": 0,
+      "verdict": "GOOD"
+    },
+    {
+      "scenario": "U5 multi-user mixed",
+      "users": {
+        "dashboard": {
+          "n": 270,
+          "median_s": 0.046,
+          "p95_s": 0.171
+        },
+        "session": {
+          "n": 11,
+          "median_s": 1.297,
+          "p95_s": 1.422
+        },
+        "alert": {
+          "n": 435,
+          "median_s": 0.028,
+          "p95_s": 0.037
+        },
+        "adhoc_rex": {
+          "n": 10,
+          "median_s": 1.434,
+          "p95_s": 1.619
+        },
+        "browse": {
+          "n": 266,
+          "median_s": 0.046,
+          "p95_s": 0.169
+        }
+      }
+    },
+    {
+      "scenario": "U6 long-range",
+      "curve": [
+        {
+          "range": "1h",
+          "s": 0.077,
+          "ok": true
+        },
+        {
+          "range": "6h",
+          "s": 0.064,
+          "ok": true
+        },
+        {
+          "range": "1d",
+          "s": 0.074,
+          "ok": true
+        },
+        {
+          "range": "3d",
+          "s": 0.21,
+          "ok": true
+        },
+        {
+          "range": "7d",
+          "s": 0.305,
+          "ok": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Durable EC2 loader for full-scale mock-* population. Same-region Graviton
+  instance bootstraps the mock_data code from S3, reads the FGAC password from
+  SSM SecureString, and runs load_parallel unattended (survives independently of
+  any dev shell). SSM-managed so we can tail the log without SSH.
+
+Parameters:
+  AmiId:              { Type: AWS::EC2::Image::Id }
+  SubnetId:           { Type: AWS::EC2::Subnet::Id }
+  VpcId:              { Type: AWS::EC2::VPC::Id }
+  InstanceType:       { Type: String, Default: c7g.4xlarge }   # 16 vCPU arm64
+  CodeBucket:         { Type: String, Default: ppl-perf-tier2-loader-924196221507 }
+  CodeKey:            { Type: String, Default: mock_data.tgz }
+  DomainEndpoint:     { Type: String }                          # host without scheme
+  PwSsmParam:         { Type: String, Default: /ppl-perf-tier2/fgac-password }
+  DocsPerIndex:       { Type: Number, Default: 25000000 }
+  Shards:             { Type: Number, Default: 2 }
+  Workers:            { Type: Number, Default: 24 }
+
+Resources:
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ppl-perf-tier2-loader-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement: [{ Effect: Allow, Principal: { Service: ec2.amazonaws.com }, Action: sts:AssumeRole }]
+      ManagedPolicyArns: [arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore]
+      Policies:
+        - PolicyName: loader
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - { Effect: Allow, Action: [s3:GetObject], Resource: !Sub "arn:aws:s3:::${CodeBucket}/*" }
+              - { Effect: Allow, Action: [ssm:GetParameter], Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${PwSsmParam}" }
+              - { Effect: Allow, Action: [kms:Decrypt], Resource: "*" }
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties: { Roles: [!Ref Role] }
+
+  Sg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ppl loader egress-only
+      VpcId: !Ref VpcId          # default SG egress allows all -> reaches the public domain
+
+  Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      SubnetId: !Ref SubnetId
+      IamInstanceProfile: !Ref InstanceProfile
+      SecurityGroupIds: [!Ref Sg]
+      Tags: [{ Key: Name, Value: ppl-perf-tier2-loader }]
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -x; exec > /var/log/loader-bootstrap.log 2>&1
+          dnf install -y python3 python3-pip tar gzip awscli-2 || dnf install -y python3 python3-pip tar gzip
+          cd /opt
+          aws s3 cp s3://${CodeBucket}/${CodeKey} mock_data.tgz --region ${AWS::Region}
+          tar xzf mock_data.tgz
+          PW=$(aws ssm get-parameter --name ${PwSsmParam} --with-decryption --region ${AWS::Region} --query Parameter.Value --output text)
+          nohup python3 -m mock_data.load_parallel \
+            --host https://${DomainEndpoint} --auth "admin:$PW" \
+            --docs-per-index ${DocsPerIndex} --shards ${Shards} --replicas 1 --workers ${Workers} \
+            > /var/log/loader.log 2>&1 &
+
+Outputs:
+  InstanceId: { Value: !Ref Instance }

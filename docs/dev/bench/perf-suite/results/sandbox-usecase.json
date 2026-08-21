@@ -1,0 +1,121 @@
+{
+  "host": "https://search-ppl-perf-tier2-sandbox-n6rcndv3ezrjcokhhjm7l6lzdq.us-east-1.es.amazonaws.com",
+  "results": [
+    {
+      "scenario": "U1 dashboard refresh",
+      "wall_s": 0.455,
+      "avg_panel_s": 0.379,
+      "slowest_panel_s": 0.455,
+      "errors": 0,
+      "verdict": "GOOD"
+    },
+    {
+      "scenario": "U2 auto-refresh",
+      "refreshes": 3,
+      "p95_wall_s": 0.622,
+      "errors": 0,
+      "verdict": "GOOD"
+    },
+    {
+      "scenario": "U3 investigation session",
+      "steps": [
+        {
+          "step": 0,
+          "s": 0.297,
+          "ok": true
+        },
+        {
+          "step": 1,
+          "s": 1.03,
+          "ok": true
+        },
+        {
+          "step": 2,
+          "s": 1.042,
+          "ok": true
+        },
+        {
+          "step": 3,
+          "s": 0.58,
+          "ok": true
+        }
+      ],
+      "median_step_s": 0.805,
+      "slowest_step_s": 1.042,
+      "completed_ok": true,
+      "verdict": "GOOD"
+    },
+    {
+      "scenario": "U4 alert-rule",
+      "evaluations": 3,
+      "p95_s": 0.388,
+      "missed": 0,
+      "verdict": "GOOD"
+    },
+    {
+      "scenario": "U5 multi-user mixed",
+      "users": {
+        "dashboard": {
+          "n": 4,
+          "median_s": 0.655,
+          "p95_s": 254.397
+        },
+        "session": {
+          "n": 14,
+          "median_s": 1.051,
+          "p95_s": 1.528
+        },
+        "alert": {
+          "n": 40,
+          "median_s": 0.262,
+          "p95_s": 1.24
+        },
+        "adhoc_rex": {
+          "n": 12,
+          "median_s": 0.929,
+          "p95_s": 2.409
+        },
+        "browse": {
+          "n": 28,
+          "median_s": 0.492,
+          "p95_s": 0.701
+        }
+      }
+    },
+    {
+      "scenario": "U6 long-range",
+      "curve": [
+        {
+          "range": "1h",
+          "s": 0.871,
+          "ok": true
+        },
+        {
+          "range": "6h",
+          "s": 2.127,
+          "ok": true
+        },
+        {
+          "range": "1d",
+          "s": 0.399,
+          "ok": true
+        },
+        {
+          "range": "3d",
+          "s": 0.804,
+          "ok": true
+        },
+        {
+          "range": "7d",
+          "s": 0.272,
+          "ok": true
+        }
+      ]
+    },
+    {
+      "scenario": "U7 WLM noisy-neighbor",
+      "verdict": "TODO",
+      "note": "WLM present; per-user two-profile off/on comparison not yet implemented."
+    }
+  ]
+}

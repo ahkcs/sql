@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  S3 bucket + IAM role for manual OpenSearch snapshots of the Tier-2 domain.
+  Data-provisioning strategy: load once, snapshot to S3, restore on every
+  subsequent run (skip re-loading ~6 TB). See snapshot.md.
+
+Parameters:
+  BucketName:
+    Type: String
+    Default: ppl-perf-tier2-snapshots-089813482837
+  DomainArn:
+    Type: String
+    Default: arn:aws:es:us-east-1:089813482837:domain/ppl-perf-tier2
+
+Resources:
+  SnapshotBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain          # keep snapshots even if this stack is deleted
+    Properties:
+      BucketName: !Ref BucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+
+  SnapshotRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ppl-perf-tier2-snapshot-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: es.amazonaws.com }   # OpenSearch Service snapshot principal
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: s3-snapshot-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [s3:ListBucket]
+                Resource: !Sub "arn:aws:s3:::${BucketName}"
+              - Effect: Allow
+                Action: [s3:GetObject, s3:PutObject, s3:DeleteObject]
+                Resource: !Sub "arn:aws:s3:::${BucketName}/*"
+
+Outputs:
+  BucketName:
+    Value: !Ref SnapshotBucket
+  SnapshotRoleArn:
+    Value: !GetAtt SnapshotRole.Arn
+    Description: Pass this as role_arn when registering the _snapshot repo.

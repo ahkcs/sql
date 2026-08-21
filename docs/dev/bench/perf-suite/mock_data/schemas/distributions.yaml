@@ -1,0 +1,132 @@
+# Field value distributions for synthetic mock-* data (human-readable mirror).
+# CANONICAL source is mock_data/distributions.py (stdlib-only, importable).
+# Keep this in sync with that module; generator.py / expected.py import the .py.
+#
+# Provenance: obs-pi prod VALUES are guardrail-blocked (only _mapping readable),
+# so overlapping-field shapes are sampled from ppl-repro-os35 (de-customerized
+# synthetic data) and obs-pi-only fields are synthesized. `verified:` names the source.
+
+schema_version: "0.2.0"
+
+source:
+  primary_index: "logs-pr172502-2026.04.07"          # on ppl-repro-os35 (acct 709676813244)
+  sampled_docs: 539828000
+  window: "2026-04-07"
+  sampled_on: "2026-08-20"
+  note: >
+    os35 schema is cape-shaped and simpler (27 leaves) than obs-pi (75). Shapes/cardinalities
+    adopted from os35; obs-pi-only fields synthesized. Generation is deterministic, so
+    expected.py re-tallies the same stream for exact correctness ground truth.
+
+fields:
+
+  severityText:
+    path: severityText
+    type: keyword
+    verified: os35
+    distribution: categorical
+    values: {INFO: 0.800, WARN: 0.120, ERROR: 0.060, DEBUG: 0.020}
+
+  severityNumber:
+    path: severityNumber
+    type: integer
+    verified: os35
+    distribution: derived_from_severityText   # OTel severity-number bands
+    bands: {DEBUG: [5, 8], INFO: [9, 12], WARN: [13, 16], ERROR: [17, 20]}
+    observed: {min: 5, max: 17, avg: 9.88}
+
+  region:
+    path: [resource.attributes.cloud.region, attributes.cluster.region]
+    type: keyword
+    verified: os35
+    distribution: uniform
+    values: [us-west-2, us-east-2, us-east-1, eu-west-1]
+
+  cluster_name:
+    path: attributes.cluster.name
+    type: keyword
+    verified: os35
+    distribution: uniform                      # cape-<region>
+    values: [cape-us-west-2, cape-us-east-2, cape-us-east-1, cape-eu-west-1]
+
+  cluster_env:
+    path: attributes.cluster.env
+    type: keyword
+    verified: os35
+    distribution: uniform
+    values: [staging, dev, prod]
+
+  k8s_namespace:
+    path: resource.attributes.k8s.namespace.name
+    type: keyword
+    verified: os35
+    distribution: uniform
+    cardinality: 17
+    values: [checkout, risk, tax, inventory, ledger, search, sessions, fraud, auth,
+             shipping, billing, accounts, gateway, payments, catalog, pricing, notifications]
+
+  service_name:
+    path: resource.attributes.service.name
+    type: keyword
+    verified: os35
+    distribution: zipf
+    cardinality: 120
+    zipf_s: 1.2
+    naming: "svc-<word>-<NNN>"
+    top_observed: {svc-alpha-000: 0.091, svc-bravo-001: 0.038, svc-charlie-002: 0.029}
+
+  k8s_pod:
+    path: resource.attributes.k8s.pod.name
+    type: keyword
+    verified: os35
+    distribution: high_cardinality            # namespace-scoped: <ns>-<hex>
+    cardinality: 10800000
+
+  # ---- obs-pi-only fields: SYNTHESIZED (absent/unpopulated on os35) ----
+
+  sourcetype:
+    path: resource.attributes.sourcetype
+    type: keyword
+    verified: synthesized
+    distribution: categorical                  # one per body format
+    values: {kv: 0.18, "kv-quoted": 0.11, mixed: 0.10, "json-dd": 0.11, "json-ecs": 0.11,
+             "json-spring": 0.11, "json-fid": 0.10, "json-http": 0.10, nested: 0.08}
+
+  applicationid:
+    path: resource.attributes.applicationid
+    type: keyword
+    verified: synthesized
+    distribution: zipf
+    cardinality: 50
+    zipf_s: 1.0
+    naming: "app-<NNN>"
+
+  productid:
+    path: resource.attributes.productid
+    type: keyword
+    verified: synthesized
+    distribution: zipf
+    cardinality: 200
+    zipf_s: 0.8
+    naming: "prod-<NNNN>"
+
+  criticality_code:
+    path: resource.attributes.criticality_code
+    type: keyword
+    verified: synthesized
+    distribution: categorical
+    values: {C1: 0.10, C2: 0.20, C3: 0.40, C4: 0.30}
+
+  http_status:
+    path: log.status               # obs-pi text; os35 = attributes.http.status_code (int, unpopulated)
+    type: keyword
+    verified: synthesized
+    distribution: categorical       # json-http sourcetype only
+    values: {"200": 0.82, "404": 0.06, "500": 0.05, "301": 0.03, "403": 0.02, "400": 0.02}
+
+  log_tier:
+    path: resource.attributes.log_tier
+    type: keyword
+    verified: synthesized
+    distribution: categorical
+    values: {standard: 0.85, critical: 0.15}
