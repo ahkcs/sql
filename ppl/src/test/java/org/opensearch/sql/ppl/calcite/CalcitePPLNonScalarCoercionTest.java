@@ -73,10 +73,7 @@ public class CalcitePPLNonScalarCoercionTest extends CalcitePPLAbstractTest {
             () -> getRelNode("source=app_logs | timechart span=1m count() by `dimensions.pod`"));
     assertTrue(
         e.getMessage(),
-        e.getMessage()
-            .equals(
-                "Cannot chart by [dimensions.pod] because it is an object. Use one of its"
-                    + " sub-fields instead."));
+        e.getMessage().equals("Cannot chart by [dimensions.pod] because it is an object."));
   }
 
   @Test
@@ -87,10 +84,7 @@ public class CalcitePPLNonScalarCoercionTest extends CalcitePPLAbstractTest {
             () -> getRelNode("source=app_logs | chart count() over message by `dimensions.pod`"));
     assertTrue(
         e.getMessage(),
-        e.getMessage()
-            .equals(
-                "Cannot chart by [dimensions.pod] because it is an object. Use one of its"
-                    + " sub-fields instead."));
+        e.getMessage().equals("Cannot chart by [dimensions.pod] because it is an object."));
   }
 
   @Test
