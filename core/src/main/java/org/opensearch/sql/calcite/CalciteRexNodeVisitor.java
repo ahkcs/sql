@@ -931,6 +931,17 @@ public class CalciteRexNodeVisitor extends AbstractNodeVisitor<RexNode, CalciteP
         OpenSearchTypeFactory.convertExprTypeToRelDataType(node.getDataType().getCoreType());
     RelDataType nullableType =
         context.rexBuilder.getTypeFactory().createTypeWithNullability(type, true);
+    // Object and array values have no scalar representation, and the cast would only fail later
+    // while the generated code is compiled
+    switch (expr.getType().getSqlTypeName()) {
+      case MAP, ARRAY, ROW ->
+          throw new IllegalArgumentException(
+              StringUtils.format(
+                  "Cannot cast a value of type %s to %s",
+                  OpenSearchTypeFactory.getLegacyTypeName(expr.getType(), context.queryType),
+                  OpenSearchTypeFactory.getLegacyTypeName(type, context.queryType)));
+      default -> {}
+    }
     // call makeCast() instead of cast() because the saft parameter is true could avoid exception.
     return context.rexBuilder.makeCast(nullableType, expr, true, true);
   }

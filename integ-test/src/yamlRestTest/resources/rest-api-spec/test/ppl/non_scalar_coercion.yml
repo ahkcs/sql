@@ -1,0 +1,99 @@
+setup:
+  - do:
+      query.settings:
+        body:
+          transient:
+            plugins.calcite.enabled : true
+  - do:
+      indices.create:
+        index: chart_object_split
+        body:
+          mappings:
+            properties:
+              "@timestamp":
+                type: date
+              body:
+                type: text
+              attributes:
+                properties:
+                  cluster:
+                    properties:
+                      name:
+                        type: keyword
+  - do:
+      bulk:
+        index: chart_object_split
+        refresh: true
+        body:
+          - '{"index": {}}'
+          - '{"@timestamp": "2026-09-08T16:10:00Z", "body": "logtype=access foo", "attributes": {"cluster": {"name": "c1"}}}'
+          - '{"index": {}}'
+          - '{"@timestamp": "2026-09-08T16:20:00Z", "body": "logtype=access bar", "attributes": {"cluster": {"name": "c2"}}}'
+
+---
+teardown:
+  - do:
+      query.settings:
+        body:
+          transient:
+            plugins.calcite.enabled : false
+  - do:
+      indices.delete:
+        index: chart_object_split
+        ignore: 404
+
+---
+"timechart split by an object field returns 400 bad_request":
+  - skip:
+      features:
+        - headers
+  - do:
+      catch: bad_request
+      headers:
+        Content-Type: 'application/json'
+      ppl:
+        body:
+          query: "source=chart_object_split | timechart span=1m count() by `attributes.cluster`"
+  - match: {"$body": "/Cannot\\s+split\\s+by\\s+field.*attributes.cluster.*of\\s+type\\s+STRUCT/"}
+
+---
+"chart split by an object field returns 400 bad_request":
+  - skip:
+      features:
+        - headers
+  - do:
+      catch: bad_request
+      headers:
+        Content-Type: 'application/json'
+      ppl:
+        body:
+          query: "source=chart_object_split | chart count() over body by `attributes.cluster`"
+  - match: {"$body": "/Cannot\\s+split\\s+by\\s+field.*attributes.cluster.*of\\s+type\\s+STRUCT/"}
+
+---
+"cast of an object field returns 400 bad_request":
+  - skip:
+      features:
+        - headers
+  - do:
+      catch: bad_request
+      headers:
+        Content-Type: 'application/json'
+      ppl:
+        body:
+          query: "source=chart_object_split | eval c = cast(`attributes.cluster` as string) | fields c"
+  - match: {"$body": "/Cannot\\s+cast\\s+a\\s+value\\s+of\\s+type\\s+STRUCT\\s+to\\s+STRING/"}
+
+---
+"timechart split by a scalar sub-field of an object still works":
+  - skip:
+      features:
+        - headers
+  - do:
+      headers:
+        Content-Type: 'application/json'
+      ppl:
+        body:
+          query: "source=chart_object_split | where match(body, 'logtype=access') | timechart span=1m count() by `attributes.cluster.name`"
+  - match: {"total": 2}
+  - match: {"datarows": [["2026-09-08 16:10:00", "c1", 1], ["2026-09-08 16:20:00", "c2", 1]]}
