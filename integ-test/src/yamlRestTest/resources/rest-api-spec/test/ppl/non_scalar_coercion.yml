@@ -22,15 +22,20 @@ setup:
                         type: keyword
                       uid:
                         type: keyword
+              tags:
+                type: nested
+                properties:
+                  name:
+                    type: keyword
   - do:
       bulk:
         index: app_logs_object
         refresh: true
         body:
           - '{"index": {}}'
-          - '{"@timestamp": "2026-01-01T00:01:00Z", "message": "request served", "dimensions": {"pod": {"name": "pod-a", "uid": "u-1"}}}'
+          - '{"@timestamp": "2026-01-01T00:01:00Z", "message": "request served", "dimensions": {"pod": {"name": "pod-a", "uid": "u-1"}}, "tags": [{"name": "t1"}, {"name": "t2"}]}'
           - '{"index": {}}'
-          - '{"@timestamp": "2026-01-01T00:02:00Z", "message": "request served", "dimensions": {"pod": {"name": "pod-b", "uid": "u-2"}}}'
+          - '{"@timestamp": "2026-01-01T00:02:00Z", "message": "request served", "dimensions": {"pod": {"name": "pod-b", "uid": "u-2"}}, "tags": [{"name": "t3"}]}'
 
 ---
 teardown:
@@ -85,6 +90,34 @@ teardown:
         body:
           query: "source=app_logs_object | eval c = cast(`dimensions.pod` as string) | fields c"
   - match: {"$body": "/Cannot\\s+cast\\s+an\\s+object\\s+to\\s+STRING/"}
+
+---
+"timechart split by a multi-value field returns 400 bad_request":
+  - skip:
+      features:
+        - headers
+  - do:
+      catch: bad_request
+      headers:
+        Content-Type: 'application/json'
+      ppl:
+        body:
+          query: "source=app_logs_object | timechart span=1m count() by tags"
+  - match: {"$body": "/Cannot\\s+chart\\s+by.*tags.*because\\s+it\\s+holds\\s+multiple\\s+values/"}
+
+---
+"cast of a multi-value field returns 400 bad_request":
+  - skip:
+      features:
+        - headers
+  - do:
+      catch: bad_request
+      headers:
+        Content-Type: 'application/json'
+      ppl:
+        body:
+          query: "source=app_logs_object | eval t = cast(tags as string) | fields t"
+  - match: {"$body": "/Cannot\\s+cast\\s+an\\s+array\\s+to\\s+STRING/"}
 
 ---
 "timechart split by a scalar sub-field of an object still works":
