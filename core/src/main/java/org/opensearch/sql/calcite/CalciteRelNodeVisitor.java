@@ -3887,9 +3887,7 @@ public class CalciteRelNodeVisitor extends AbstractNodeVisitor<RelNode, CalciteP
                         + " instead.",
                     fieldName)
                 : StringUtils.format(
-                    "Cannot chart by [%s] because it holds multiple values. Use a field with a"
-                        + " single value instead.",
-                    fieldName));
+                    "Cannot chart by [%s] because it holds multiple values.", fieldName));
       }
       colSplit =
           relBuilder.alias(

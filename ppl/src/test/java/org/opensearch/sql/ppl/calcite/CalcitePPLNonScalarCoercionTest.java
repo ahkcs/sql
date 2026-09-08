@@ -101,10 +101,7 @@ public class CalcitePPLNonScalarCoercionTest extends CalcitePPLAbstractTest {
             () -> getRelNode("source=app_logs | chart count() over message by tags"));
     assertTrue(
         e.getMessage(),
-        e.getMessage()
-            .equals(
-                "Cannot chart by [tags] because it holds multiple values. Use a field with a single"
-                    + " value instead."));
+        e.getMessage().equals("Cannot chart by [tags] because it holds multiple values."));
   }
 
   @Test
