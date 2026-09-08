@@ -6,29 +6,31 @@ setup:
             plugins.calcite.enabled : true
   - do:
       indices.create:
-        index: chart_object_split
+        index: app_logs_object
         body:
           mappings:
             properties:
               "@timestamp":
                 type: date
-              body:
+              message:
                 type: text
-              attributes:
+              dimensions:
                 properties:
-                  cluster:
+                  pod:
                     properties:
                       name:
                         type: keyword
+                      uid:
+                        type: keyword
   - do:
       bulk:
-        index: chart_object_split
+        index: app_logs_object
         refresh: true
         body:
           - '{"index": {}}'
-          - '{"@timestamp": "2026-09-08T16:10:00Z", "body": "logtype=access foo", "attributes": {"cluster": {"name": "c1"}}}'
+          - '{"@timestamp": "2026-01-01T00:01:00Z", "message": "request served", "dimensions": {"pod": {"name": "pod-a", "uid": "u-1"}}}'
           - '{"index": {}}'
-          - '{"@timestamp": "2026-09-08T16:20:00Z", "body": "logtype=access bar", "attributes": {"cluster": {"name": "c2"}}}'
+          - '{"@timestamp": "2026-01-01T00:02:00Z", "message": "request served", "dimensions": {"pod": {"name": "pod-b", "uid": "u-2"}}}'
 
 ---
 teardown:
@@ -39,7 +41,7 @@ teardown:
             plugins.calcite.enabled : false
   - do:
       indices.delete:
-        index: chart_object_split
+        index: app_logs_object
         ignore: 404
 
 ---
@@ -53,8 +55,8 @@ teardown:
         Content-Type: 'application/json'
       ppl:
         body:
-          query: "source=chart_object_split | timechart span=1m count() by `attributes.cluster`"
-  - match: {"$body": "/Cannot\\s+split\\s+by\\s+field.*attributes.cluster.*of\\s+type\\s+STRUCT/"}
+          query: "source=app_logs_object | timechart span=1m count() by `dimensions.pod`"
+  - match: {"$body": "/Cannot\\s+chart\\s+by.*dimensions.pod.*because\\s+it\\s+is\\s+an\\s+object/"}
 
 ---
 "chart split by an object field returns 400 bad_request":
@@ -67,8 +69,8 @@ teardown:
         Content-Type: 'application/json'
       ppl:
         body:
-          query: "source=chart_object_split | chart count() over body by `attributes.cluster`"
-  - match: {"$body": "/Cannot\\s+split\\s+by\\s+field.*attributes.cluster.*of\\s+type\\s+STRUCT/"}
+          query: "source=app_logs_object | chart count() over message by `dimensions.pod`"
+  - match: {"$body": "/Cannot\\s+chart\\s+by.*dimensions.pod.*because\\s+it\\s+is\\s+an\\s+object/"}
 
 ---
 "cast of an object field returns 400 bad_request":
@@ -81,8 +83,8 @@ teardown:
         Content-Type: 'application/json'
       ppl:
         body:
-          query: "source=chart_object_split | eval c = cast(`attributes.cluster` as string) | fields c"
-  - match: {"$body": "/Cannot\\s+cast\\s+a\\s+value\\s+of\\s+type\\s+STRUCT\\s+to\\s+STRING/"}
+          query: "source=app_logs_object | eval c = cast(`dimensions.pod` as string) | fields c"
+  - match: {"$body": "/Cannot\\s+cast\\s+an\\s+object\\s+to\\s+STRING/"}
 
 ---
 "timechart split by a scalar sub-field of an object still works":
@@ -94,6 +96,6 @@ teardown:
         Content-Type: 'application/json'
       ppl:
         body:
-          query: "source=chart_object_split | where match(body, 'logtype=access') | timechart span=1m count() by `attributes.cluster.name`"
+          query: "source=app_logs_object | where message = 'request served' | timechart span=1m count() by `dimensions.pod.name`"
   - match: {"total": 2}
-  - match: {"datarows": [["2026-09-08 16:10:00", "c1", 1], ["2026-09-08 16:20:00", "c2", 1]]}
+  - match: {"datarows": [["2026-01-01 00:01:00", "pod-a", 1], ["2026-01-01 00:02:00", "pod-b", 1]]}

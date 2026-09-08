@@ -3878,12 +3878,18 @@ public class CalciteRelNodeVisitor extends AbstractNodeVisitor<RelNode, CalciteP
     if (!SqlTypeUtil.isCharacter(colSplit.getType())) {
       // Object, array and other non-scalar types have no string representation to pivot on
       if (!SqlTypeUtil.isAtomic(colSplit.getType())) {
+        String containerType = OpenSearchTypeFactory.getContainerTypeName(colSplit.getType());
+        String fieldName = StringUtils.unquoteIdentifier(columnSplitName);
         throw new IllegalArgumentException(
-            StringUtils.format(
-                "Cannot split by field [%s] of type %s: a chart split field must be a scalar type."
-                    + " Use a scalar field instead, such as a sub-field of an object.",
-                columnSplitName,
-                OpenSearchTypeFactory.getLegacyTypeName(colSplit.getType(), context.queryType)));
+            "object".equals(containerType)
+                ? StringUtils.format(
+                    "Cannot chart by [%s] because it is an object. Use one of its sub-fields"
+                        + " instead.",
+                    fieldName)
+                : StringUtils.format(
+                    "Cannot chart by [%s] because it holds multiple values. Use a field with a"
+                        + " single value instead.",
+                    fieldName));
       }
       colSplit =
           relBuilder.alias(

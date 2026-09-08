@@ -55,9 +55,9 @@ public class CalcitePPLNonScalarCoercionTest extends CalcitePPLAbstractTest {
     final SchemaPlus schema = CalciteAssert.addSchema(rootSchema, schemaSpecs);
     ImmutableList<Object[]> rows =
         ImmutableList.of(
-            new Object[] {0L, "access", Map.of("name", "c1"), List.of("x")},
-            new Object[] {60000L, "access", Map.of("name", "c2"), List.of("y")});
-    schema.add("objlogs", new ObjectFieldTable(rows));
+            new Object[] {0L, "request served", Map.of("name", "pod-a"), List.of("x")},
+            new Object[] {60000L, "request served", Map.of("name", "pod-b"), List.of("y")});
+    schema.add("app_logs", new ObjectFieldTable(rows));
     return Frameworks.newConfigBuilder()
         .parserConfig(SqlParser.Config.DEFAULT)
         .defaultSchema(schema)
@@ -70,10 +70,13 @@ public class CalcitePPLNonScalarCoercionTest extends CalcitePPLAbstractTest {
     IllegalArgumentException e =
         assertThrows(
             IllegalArgumentException.class,
-            () -> getRelNode("source=objlogs | timechart span=1m count() by cluster"));
+            () -> getRelNode("source=app_logs | timechart span=1m count() by `dimensions.pod`"));
     assertTrue(
         e.getMessage(),
-        e.getMessage().startsWith("Cannot split by field [cluster] of type STRUCT: a chart split"));
+        e.getMessage()
+            .equals(
+                "Cannot chart by [dimensions.pod] because it is an object. Use one of its"
+                    + " sub-fields instead."));
   }
 
   @Test
@@ -81,10 +84,13 @@ public class CalcitePPLNonScalarCoercionTest extends CalcitePPLAbstractTest {
     IllegalArgumentException e =
         assertThrows(
             IllegalArgumentException.class,
-            () -> getRelNode("source=objlogs | chart count() over body by cluster"));
+            () -> getRelNode("source=app_logs | chart count() over message by `dimensions.pod`"));
     assertTrue(
         e.getMessage(),
-        e.getMessage().startsWith("Cannot split by field [cluster] of type STRUCT: a chart split"));
+        e.getMessage()
+            .equals(
+                "Cannot chart by [dimensions.pod] because it is an object. Use one of its"
+                    + " sub-fields instead."));
   }
 
   @Test
@@ -92,10 +98,13 @@ public class CalcitePPLNonScalarCoercionTest extends CalcitePPLAbstractTest {
     IllegalArgumentException e =
         assertThrows(
             IllegalArgumentException.class,
-            () -> getRelNode("source=objlogs | chart count() over body by tags"));
+            () -> getRelNode("source=app_logs | chart count() over message by tags"));
     assertTrue(
         e.getMessage(),
-        e.getMessage().startsWith("Cannot split by field [tags] of type ARRAY: a chart split"));
+        e.getMessage()
+            .equals(
+                "Cannot chart by [tags] because it holds multiple values. Use a field with a single"
+                    + " value instead."));
   }
 
   @Test
@@ -103,8 +112,8 @@ public class CalcitePPLNonScalarCoercionTest extends CalcitePPLAbstractTest {
     IllegalArgumentException e =
         assertThrows(
             IllegalArgumentException.class,
-            () -> getRelNode("source=objlogs | eval s = cast(cluster as string)"));
-    assertEquals("Cannot cast a value of type STRUCT to STRING", e.getMessage());
+            () -> getRelNode("source=app_logs | eval s = cast(`dimensions.pod` as string)"));
+    assertEquals("Cannot cast an object to STRING", e.getMessage());
   }
 
   @Test
@@ -112,25 +121,28 @@ public class CalcitePPLNonScalarCoercionTest extends CalcitePPLAbstractTest {
     IllegalArgumentException e =
         assertThrows(
             IllegalArgumentException.class,
-            () -> getRelNode("source=objlogs | eval s = cast(tags as int)"));
-    assertEquals("Cannot cast a value of type ARRAY to INT", e.getMessage());
+            () -> getRelNode("source=app_logs | eval s = cast(tags as int)"));
+    assertEquals("Cannot cast an array to INT", e.getMessage());
   }
 
   @Test
   public void castScalarFieldStillWorks() {
-    verifyResultCount(getRelNode("source=objlogs | eval s = cast(body as int) | fields s"), 2);
+    verifyResultCount(getRelNode("source=app_logs | eval s = cast(message as int) | fields s"), 2);
   }
 
-  /** limit=0 skips the top-N pivot, so the split field is never coerced to a string. */
+  /**
+   * limit=0 skips the top-N pivot, so the split field is never coerced to a string. The quoted
+   * column name is a pre-existing chart naming quirk, unrelated to this guard.
+   */
   @Test
   public void chartWithoutLimitKeepsObjectField() {
     verifyLogical(
-        getRelNode("source=objlogs | chart limit=0 count() over body by cluster"),
+        getRelNode("source=app_logs | chart limit=0 count() over message by `dimensions.pod`"),
         "LogicalSort(sort0=[$0], dir0=[ASC])\n"
             + "  LogicalAggregate(group=[{0, 1}], count()=[COUNT()])\n"
-            + "    LogicalProject(body=[$1], cluster=[$2])\n"
+            + "    LogicalProject(message=[$1], `dimensions.pod`=[$2])\n"
             + "      LogicalFilter(condition=[IS NOT NULL($1)])\n"
-            + "        LogicalTableScan(table=[[scott, objlogs]])\n");
+            + "        LogicalTableScan(table=[[scott, app_logs]])\n");
   }
 
   @RequiredArgsConstructor
@@ -143,10 +155,10 @@ public class CalcitePPLNonScalarCoercionTest extends CalcitePPLAbstractTest {
                 .builder()
                 .add("@timestamp", SqlTypeName.TIMESTAMP)
                 .nullable(true)
-                .add("body", SqlTypeName.VARCHAR)
+                .add("message", SqlTypeName.VARCHAR)
                 .nullable(true)
                 .add(
-                    "cluster",
+                    "dimensions.pod",
                     factory.createTypeWithNullability(
                         factory.createMapType(
                             factory.createSqlType(SqlTypeName.VARCHAR),
