@@ -44,6 +44,34 @@ node still feels prod-like pressure.
 | KMS | CMK | AWS-owned key | encryption-at-rest ≠ query latency |
 | Docs (approx) | 153.4 B | **~19 B** | derived; we target by *volume* (6 TB), doc-count falls out |
 
+## Data-scale ladder — how much data we actually load
+
+Fidelity reference (obs-pi pre-prod, as reported by the customer domain): 1 h ≈ 607 M docs /
+508 GB · 1 d ≈ 14.6 B docs / 12.2 TB · retained ≈ 156 B docs / 169 TB (~14 d, RF≈0.67).
+Those TB figures are on-disk including replicas, so one prod day is ≈ 7.3 TB of primaries and
+the customer's average document is **≈ 0.50 KB of primary store**.
+
+Our wide (~3000-field) synthetic document is **≈ 1.95 KB of primary store — 3.9× the
+customer's**, so doc-count parity and byte parity do not coincide. We target **doc count**,
+because PPL latency tracks documents scanned per shard far more closely than bytes on disk;
+overshooting bytes is the conservative direction.
+
+| Rung | Docs | Primaries | On-disk (RF=1) | Shards/index (~13 GB) | Ingest @ 34.5 K docs/s |
+|---|---:|---:|---:|---:|---:|
+| Schema-diff run (equal docs vs the 75-field baseline) | 250 M | 0.50 TB | 1.0 TB | 5 | 2 h |
+| **1 fidelity day ÷ N=8 — AUTHORITATIVE** | **1.83 B** | **3.6 TB** | **7.1 TB** | **28** | **~5 h on 3 workers** |
+| 1 fidelity day, absolute (no scale-down) | 14.6 B | 28.5 TB | 57 TB | 220 | ~5 days |
+| Spec design target (retained ÷ N=8, per-node parity) | 19.5 B | 38 TB | 76 TB | 292 | ~6 days |
+
+- The **absolute** and **full-retention** rungs do not fit: 36 TB of provisioned EBS (12 × 3072 GB)
+  caps us at ~18 TB of primaries at RF=1. They would need either a larger cluster or a
+  customer-sized document (≈ 0.50 KB), i.e. cutting `wide_schema.SPARSE_PER_DOC`.
+- At the authoritative rung the topology lands close to prod on every axis that matters:
+  ~12.8 GB/shard (prod ~13), ~47 shards/node (prod ~80), ~590 GB/node (prod ~1 TB).
+- Ingest is parallelised across a loader fleet with a disjoint `--only` index list per worker
+  (`fleet_load.py`); two workers on one index would wipe each other, since `create_index`
+  DELETEs before it PUTs.
+
 ## Budget alternative (N = 16 → 6 hot)
 
 6 × om2.4xlarge, 3 coord, 3 master, **~3 TB source data** (half the data-prep).
