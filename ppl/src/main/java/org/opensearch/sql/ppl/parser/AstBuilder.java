@@ -213,14 +213,15 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     return true;
   }
 
+  /**
+   * Only an unqualified name is encoded. A qualified one may name another datasource, whose storage
+   * engine does not decode and would read the suffix as part of the table name.
+   */
   private UnresolvedExpression withTimeBounds(UnresolvedExpression tableSource) {
-    if (!(tableSource instanceof QualifiedName name)) {
+    if (!(tableSource instanceof QualifiedName name) || name.getParts().size() != 1) {
       return tableSource;
     }
-    List<String> parts = new ArrayList<>(name.getParts());
-    int last = parts.size() - 1;
-    parts.set(last, timeBounds.encodeInto(parts.get(last)));
-    return new QualifiedName(parts);
+    return new QualifiedName(timeBounds.encodeInto(name.getParts().get(0)));
   }
 
   public Settings getSettings() {

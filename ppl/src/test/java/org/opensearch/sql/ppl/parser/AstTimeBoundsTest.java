@@ -65,6 +65,12 @@ public class AstTimeBoundsTest extends AstPlanningTestBase {
     assertFalse(plan, plan.contains("countries" + ENCODED));
   }
 
+  /** Another datasource's engine does not decode the suffix, so a qualified name is left alone. */
+  @Test
+  public void shouldLeaveAQualifiedNameAlone() {
+    assertEquals(Set.of(), narrowedSources("source=my_prometheus.up"));
+  }
+
   @Test
   public void shouldNarrowNothingWithoutBounds() {
     assertEquals(Set.of(), narrowedSources("source=logs-* | lookup countries id", null));
