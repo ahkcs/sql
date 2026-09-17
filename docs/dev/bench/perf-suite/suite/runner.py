@@ -23,19 +23,30 @@ import urllib.error
 import urllib.request
 
 from mock_data import expected
-from . import catalogue, metrics, verdicts
+from . import catalogue, identities, metrics, runinfo, verdicts
+
+
+def ssl_ctx():
+    """PPL_INSECURE_TLS=1 skips cert verification — for the Tier-1 security profile,
+    which serves the OpenSearch demo self-signed certs. Never set it against a
+    managed domain."""
+    if os.environ.get("PPL_INSECURE_TLS") == "1":
+        import ssl
+        return ssl._create_unverified_context()
+    return None
 
 
 def make_http(host, auth):
     hdr = {"Content-Type": "application/json"}
     if auth:
         hdr["Authorization"] = "Basic " + base64.b64encode(auth.encode()).decode()
+    ctx = ssl_ctx()
 
     def http(method, path, body=None):
         data = body.encode() if isinstance(body, str) else body
         r = urllib.request.Request(host + path, data=data, method=method, headers=hdr)
         try:
-            with urllib.request.urlopen(r, timeout=310) as resp:
+            with urllib.request.urlopen(r, timeout=310, context=ctx) as resp:
                 return resp.status, resp.read().decode()
         except urllib.error.HTTPError as e:
             return e.code, e.read().decode()
@@ -97,6 +108,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--host")
     ap.add_argument("--auth")
+    ap.add_argument("--as-user", dest="as_user",
+                    help="named identity resolved from the environment (suite/identities.py): "
+                         "admin | dash_user | adhoc_user. Overrides --auth.")
     ap.add_argument("--reps", type=int, default=3)
     ap.add_argument("--warmup", type=int, default=1)
     ap.add_argument("--time-ranges", default="5m,15m,1h,1d")
@@ -128,10 +142,12 @@ def main():
     trs = args.time_ranges.split(",")
     if args.wide:
         trs += list(catalogue.WIDE_RANGES)
-    http = make_http(args.host, args.auth)
+    auth = identities.auth_for(args.as_user, args.auth)
+    http = make_http(args.host, auth)
 
-    result = {"run": {"host": args.host, "reps": args.reps, "warmup": args.warmup,
-                      "time_ranges": trs, "loaded_docs": args.loaded_docs},
+    result = {"run": runinfo.header("perf", args.host, as_user=args.as_user,
+                                    reps=args.reps, warmup=args.warmup,
+                                    time_ranges=trs, loaded_docs=args.loaded_docs),
               "cluster_metrics": {}, "perf": [], "correctness": []}
 
     base = metrics.snapshot(http)

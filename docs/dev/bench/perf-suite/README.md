@@ -23,16 +23,26 @@ perf-suite/
   mock_data/
     schemas/
       customer-pre-prod-mapping.json   # real obs-pi OTel mapping (reference, verbatim)
-      mock-index-template.json         # composable template derived from ^ (what the loader PUTs)
-      distributions.yaml               # M1 field distributions (TODO: sample from os35)
-    generator.py                       # TODO M2: one emitter per body format
-    expected.py                        # TODO M2: analytical expected values for correctness
-    load.py                            # TODO M2: idempotent bulk load --target local|aws
+      mock-index-template.json         # 75-field base template (loader --narrow)
+      mock-index-template-wide.json    # ~3000-field wide template — THE DEFAULT
+      distributions.yaml               # M1 field distributions (mirrors distributions.py)
+    generator.py                       # deterministic OTel doc emitters, one per body format
+    wide_schema.py                     # sparse attributes.*/resource.attributes.* width
+    expected.py                        # analytical expected values for correctness
+    load.py / load_parallel.py         # idempotent bulk load
   infra/
-    local/                             # TODO M4: docker-compose + Makefile + observability
-    aws/                               # TODO M5: CDK/domain spec from the sizing doc
-  suite/                               # TODO M3/M6: runner, catalogue, sessions
-  report/                              # TODO: report.md + diff.py
+    local/                             # Tier 1: compose + Makefile + observability sink
+    aws/                               # Tier 2: CFN domain, snapshot, EC2 loader, run_pillars.sh
+  suite/
+    catalogue.py                       # 22 query templates x 11 categories
+    runner.py / load_runner.py / usecase_runner.py    # the three pillars (P*, L*, U*)
+    identities.py                      # named per-user auth from env (--as-user)
+    wlm.py                             # §3.3 workload-group policy + stats (U7)
+    runinfo.py                         # run header: run_id / git_sha / schema_version
+    metrics.py / verdicts.py
+  report/
+    make_report.py / diff.py           # report.md + run-to-run comparison
+    ship.py                            # publish a finished run to the observability sink
   results/                             # run outputs (results.json)
 ```
 
@@ -57,7 +67,41 @@ perf-suite/
 - [x] Use-case pillar (`suite/usecase_runner.py`, U1-U6; U7 WLM scaffolded) — live-validated.
 - [x] Report step (`report/make_report.py` + `report/diff.py`) — validated offline.
 - [x] Tier-1 local docker (`infra/local/`: compose + Makefile + README) — compose config valid; `make up` smoke pending.
-- [ ] Team sandbox `make up` local smoke; full N=8 run (deploy in team for authoritative run); U7 WLM two-user setup (§3.3).
+- [x] Authoritative Tier-2 run on the 75-field mapping (250M docs): 79 FAST / 8 ACCEPTABLE / 1 SLOW,
+      Load 100% in-threshold, U1-U6 green (`results/tier2-team-full/`). Snapshot `mock-250m`.
+- [x] **Wide (~3000-field) schema is the default** (`wide_schema.py`, `--narrow` = old 75-field base).
+      Width lives in sparse `attributes.*` / `resource.attributes.*` — the OTel logs data model has no
+      `log.**` field, so the customer's `log.**` explosion is deliberately not reproduced.
+- [x] **M6 complete — U7 WLM noisy-neighbor implemented** (`suite/wlm.py`, `suite/identities.py`,
+      real `u7()` with solo / WLM-off / WLM-on phases and §4.4 gates). 9/9 in `suite/test_wlm.py`.
+- [x] **M5 ship step** (`report/ship.py`): daily per-pillar indices, idempotent by `run_id`,
+      ISM hot-90d policy, `SINK_URL` knob; run header in every results.json (`suite/runinfo.py`).
+
+### Open
+
+- [ ] **Authoritative wide run (M7)**: 250M wide re-ingest on the EC2 loader -> snapshot
+      `mock-250m-wide` -> all three pillars -> `report/diff.py` vs the 75-field baseline.
+      Needs refreshed AWS credentials for the team account.
+- [ ] Tier-1 `make up` smoke (needs a running Docker daemon), then `make up-secure` + `make wlm-setup`
+      + `make usecase-wlm` for the first real U7 numbers.
+- [ ] AWS observability sink domain + the four dashboards / three alerts (§3.4).
+- [ ] Optionally file the leading-wildcard `LIKE` on `body` finding (48.9s, NEW-SLOW) as a ticket.
+
+## WLM / U7 is Tier-1 only
+
+Amazon OpenSearch Service exposes neither `_wlm` nor `_rules`, and `wlm.workload_group.mode` is not
+one of the allowlisted `_cluster/settings` keys, so the §3.3 policy cannot be loaded on Tier 2 — U7
+runs on Tier 1 with the security plugin on. `u7()` self-skips with that reason elsewhere.
+
+Plan §3.3 says the groups differ by "priority"; WLM has no priority field. The equivalent is
+`resiliency_mode`: `dashboards` is `soft`, `adhoc` is `enforced` — which is what makes U7's 429s
+observable.
+
+```bash
+export OS_ADMIN_PASSWORD='...'   PPL_ADMIN_AUTH=admin:"$OS_ADMIN_PASSWORD"
+export PPL_DASH_AUTH=dash_user:'...'  PPL_ADHOC_AUTH=adhoc_user:'...'
+cd infra/local && make up-secure load-secure wlm-setup usecase-wlm
+```
 
 ## Key facts
 

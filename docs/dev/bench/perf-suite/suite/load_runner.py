@@ -22,7 +22,7 @@ import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from . import catalogue, metrics, verdicts
+from . import catalogue, identities, metrics, runinfo, verdicts
 from .runner import make_http, pct, run_ppl
 
 
@@ -134,6 +134,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", required=True)
     ap.add_argument("--auth")
+    ap.add_argument("--as-user", dest="as_user",
+                    help="named identity from the environment (suite/identities.py)")
     ap.add_argument("--tests", default="l1,l2,l3")
     ap.add_argument("--levels", default="5,10,20")
     ap.add_argument("--ramp-max", type=int, default=50)
@@ -144,11 +146,13 @@ def main():
     ap.add_argument("--out", default="results/load.json")
     args = ap.parse_args()
 
-    http = make_http(args.host, args.auth)
+    http = make_http(args.host, identities.auth_for(args.as_user, args.auth))
     work = [{"id": q.id, "category": q.category, "ppl": catalogue.full_query(q, args.time_range)}
             for q in catalogue.build_catalogue()]
     tests = set(args.tests.split(","))
-    result = {"host": args.host, "time_range": args.time_range, "work_size": len(work)}
+    result = {"run": runinfo.header("load", args.host, as_user=args.as_user,
+                                    time_range=args.time_range, work_size=len(work)),
+              "host": args.host, "time_range": args.time_range, "work_size": len(work)}
 
     if "l1" in tests:
         result["l1_ladder"] = l1_ladder(http, work, [int(x) for x in args.levels.split(",")])

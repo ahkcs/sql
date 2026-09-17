@@ -35,16 +35,25 @@ _TRANSIENT = (urllib.error.URLError, http.client.IncompleteRead,
               http.client.RemoteDisconnected, ConnectionError, TimeoutError, OSError)
 
 
+def _ssl_ctx():
+    """PPL_INSECURE_TLS=1 skips cert verification — Tier-1 security profile only
+    (OpenSearch demo self-signed certs)."""
+    if os.environ.get("PPL_INSECURE_TLS") == "1":
+        import ssl
+        return ssl._create_unverified_context()
+    return None
+
+
 def req(method, url, body=None, auth=None, retries=5):
     data = body.encode() if isinstance(body, str) else body
     headers = {"Content-Type": "application/json"}
     if auth:
         headers["Authorization"] = "Basic " + base64.b64encode(auth.encode()).decode()
-    last = None
+    ctx, last = _ssl_ctx(), None
     for attempt in range(retries):
         r = urllib.request.Request(url, data=data, method=method, headers=headers)
         try:
-            with urllib.request.urlopen(r, timeout=180) as resp:
+            with urllib.request.urlopen(r, timeout=180, context=ctx) as resp:
                 return resp.status, resp.read().decode()
         except urllib.error.HTTPError as e:
             if e.code in (429, 503) and attempt < retries - 1:

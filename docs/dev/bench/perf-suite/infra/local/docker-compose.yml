@@ -3,6 +3,10 @@
 # local observability sink. Bump OS_VERSION to match Tier-2 (OpenSearch 3.5) for fidelity.
 #
 #   make up && make load && make test-local
+#
+# U7 (WLM noisy-neighbor) needs real users, so it runs with security ON:
+#   make up-secure && make load-secure && make wlm-setup && make usecase-wlm
+# WLM is Tier-1 only — Amazon OpenSearch Service exposes neither _wlm nor _rules.
 x-node: &node
   image: opensearchproject/opensearch:${OS_VERSION:-2.18.0}
   environment: &env
@@ -10,8 +14,9 @@ x-node: &node
     discovery.seed_hosts: os-d1,os-d2,os-d3,os-coord
     cluster.initial_cluster_manager_nodes: os-d1
     bootstrap.memory_lock: "true"
-    DISABLE_SECURITY_PLUGIN: "true"
-    DISABLE_INSTALL_DEMO_CONFIG: "true"
+    DISABLE_SECURITY_PLUGIN: "${DISABLE_SECURITY:-true}"
+    DISABLE_INSTALL_DEMO_CONFIG: "${DISABLE_SECURITY:-true}"
+    OPENSEARCH_INITIAL_ADMIN_PASSWORD: "${OS_ADMIN_PASSWORD:-}"
     OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
   ulimits:
     memlock: { soft: -1, hard: -1 }
