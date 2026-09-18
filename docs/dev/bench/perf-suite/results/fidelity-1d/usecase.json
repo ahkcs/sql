@@ -1,0 +1,133 @@
+{
+  "run": {
+    "run_id": "usecase-20260918T174541Z-508a",
+    "pillar": "usecase",
+    "timestamp": "2026-09-18T17:45:41+00:00",
+    "host": "https://search-ppl-perf-tier2-hfmrk3ra3wgzmo7vnp7juptyny.us-east-1.es.amazonaws.com",
+    "tier": "tier2",
+    "git_sha": null,
+    "schema_version": "0.2.0",
+    "wlm_policy_version": "1.0",
+    "as_user": null,
+    "identities": []
+  },
+  "host": "https://search-ppl-perf-tier2-hfmrk3ra3wgzmo7vnp7juptyny.us-east-1.es.amazonaws.com",
+  "results": [
+    {
+      "scenario": "U1 dashboard refresh",
+      "wall_s": 0.246,
+      "avg_panel_s": 0.084,
+      "slowest_panel_s": 0.241,
+      "errors": 0,
+      "verdict": "GOOD"
+    },
+    {
+      "scenario": "U2 auto-refresh",
+      "refreshes": 10,
+      "p95_wall_s": 0.402,
+      "errors": 0,
+      "verdict": "GOOD"
+    },
+    {
+      "scenario": "U3 investigation session",
+      "steps": [
+        {
+          "step": 0,
+          "s": 0.42,
+          "ok": true
+        },
+        {
+          "step": 1,
+          "s": 10.419,
+          "ok": true
+        },
+        {
+          "step": 2,
+          "s": 10.088,
+          "ok": true
+        },
+        {
+          "step": 3,
+          "s": 0.459,
+          "ok": true
+        }
+      ],
+      "median_step_s": 5.273,
+      "slowest_step_s": 10.419,
+      "completed_ok": true,
+      "verdict": "ACCEPTABLE"
+    },
+    {
+      "scenario": "U4 alert-rule",
+      "evaluations": 10,
+      "p95_s": 0.393,
+      "missed": 0,
+      "verdict": "GOOD"
+    },
+    {
+      "scenario": "U5 multi-user mixed",
+      "users": {
+        "dashboard": {
+          "n": 3433,
+          "median_s": 0.147,
+          "p95_s": 0.356
+        },
+        "session": {
+          "n": 237,
+          "median_s": 2.286,
+          "p95_s": 2.39
+        },
+        "alert": {
+          "n": 13488,
+          "median_s": 0.035,
+          "p95_s": 0.044
+        },
+        "adhoc_rex": {
+          "n": 236,
+          "median_s": 2.284,
+          "p95_s": 2.37
+        },
+        "browse": {
+          "n": 3251,
+          "median_s": 0.156,
+          "p95_s": 0.358
+        }
+      }
+    },
+    {
+      "scenario": "U6 long-range",
+      "curve": [
+        {
+          "range": "1h",
+          "s": 0.073,
+          "ok": true
+        },
+        {
+          "range": "6h",
+          "s": 0.081,
+          "ok": true
+        },
+        {
+          "range": "1d",
+          "s": 0.098,
+          "ok": true
+        },
+        {
+          "range": "3d",
+          "s": 0.209,
+          "ok": true
+        },
+        {
+          "range": "7d",
+          "s": 0.166,
+          "ok": true
+        }
+      ]
+    },
+    {
+      "scenario": "U7 WLM noisy-neighbor",
+      "verdict": "SKIPPED",
+      "reason": "needs both identities: set PPL_DASH_AUTH and PPL_ADHOC_AUTH (see suite/identities.py) and provision with `python3 -m suite.wlm --provision`."
+    }
+  ]
+}
