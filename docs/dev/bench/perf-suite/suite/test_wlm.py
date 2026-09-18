@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """WLM policy + U7 validation against a fake cluster.
 
-U7 cannot run on Tier 2 (Amazon OpenSearch Service exposes no _wlm), so the
-off/on comparison logic is covered here instead: group/rule provisioning, the
+These cover the off/on comparison logic without a cluster, so the scenario can
+be changed safely: group/rule provisioning, the
 `workload_group` vs `query_group` naming probe, per-group stats deltas, every
 skip path, and a full solo/off/on run whose gates must pass.
 

@@ -16,10 +16,11 @@ API surface (verified against OpenSearch core `main`):
 Naming: OpenSearch >= 3.1 uses `workload_group`; 2.18-3.0 called the same thing
 `query_group`. `paths()` probes and returns whichever the cluster answers on.
 
-NOT available on Amazon OpenSearch Service: managed domains expose neither
-`_wlm` nor `_rules`, and `wlm.workload_group.mode` is not one of the allowlisted
-`_cluster/settings` keys. U7 therefore runs on Tier 1 (self-managed), where the
-security plugin must be enabled so the two users exist — see infra/local.
+Available on Amazon OpenSearch Service (verified on a 3.5 domain 2026-09-18:
+`_wlm/workload_group`, `_wlm/stats` and `_rules/workload_group` all answer, and
+`wlm.workload_group.mode` is accepted by `_cluster/settings`). The AWS
+"supported operations" doc page omits these endpoints but is stale for 3.5.
+Tier 1 works too, with the security plugin enabled so the two users exist.
 
 Plan mapping: §3.3 says "priority high/normal", which is not a WLM field. The
 equivalent knob is `resiliency_mode`: `dashboards` is `soft` (may burst above

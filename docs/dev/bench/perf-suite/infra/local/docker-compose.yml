@@ -6,7 +6,7 @@
 #
 # U7 (WLM noisy-neighbor) needs real users, so it runs with security ON:
 #   make up-secure && make load-secure && make wlm-setup && make usecase-wlm
-# WLM is Tier-1 only — Amazon OpenSearch Service exposes neither _wlm nor _rules.
+# Tier 2 can run U7 too (managed AWS does expose _wlm on 3.5); this is the cheap loop.
 x-node: &node
   image: opensearchproject/opensearch:${OS_VERSION:-2.18.0}
   environment: &env

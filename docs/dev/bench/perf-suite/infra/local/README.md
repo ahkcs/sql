@@ -19,9 +19,9 @@ Individual pillars: `make perf`, `make load-test`, `make usecase`, `make clean`.
 
 ## WLM / U7 (security-on profile)
 
-U7 needs real users, and **Tier 1 is the only tier that can run it**: Amazon OpenSearch Service
-exposes neither `_wlm` nor `_rules`, and `wlm.workload_group.mode` is not an allowlisted
-`_cluster/settings` key. So the same compose file has a security-on profile:
+U7 needs real users, so the same compose file has a security-on profile. Tier 2 can run U7 as
+well — managed AWS does expose `_wlm`/`_rules` on OpenSearch 3.5 — but iterating here is free
+and doesn't disturb the benchmark cluster:
 
 ```bash
 export OS_ADMIN_PASSWORD='StrongDemo#Pass1'

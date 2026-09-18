@@ -59,7 +59,7 @@ test-local: perf load-test usecase
 clean:
 	curl -s $(CURLO) -XDELETE $(HOST)/mock-* >/dev/null || true
 
-# ---- WLM / U7 (Tier-1 only; managed AWS exposes neither _wlm nor _rules) -------
+# ---- WLM / U7 (also runnable on Tier 2; this is the cheap local loop) ----------
 # Prerequisites, exported in your shell first:
 #   export OS_ADMIN_PASSWORD='StrongDemo#Pass1'
 #   export PPL_ADMIN_AUTH=admin:$$OS_ADMIN_PASSWORD

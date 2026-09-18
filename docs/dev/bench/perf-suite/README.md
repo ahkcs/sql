@@ -77,21 +77,35 @@ perf-suite/
 - [x] **M5 ship step** (`report/ship.py`): daily per-pillar indices, idempotent by `run_id`,
       ISM hot-90d policy, `SINK_URL` knob; run header in every results.json (`suite/runinfo.py`).
 
+- [x] Wide 250M loaded + snapshotted (`mock-250m-wide`) as the equal-doc-count schema-width control.
+- [x] **Fidelity-scale dataset (M7 data)**: 1.83B docs = one customer day / N=8, 183M per index,
+      28 shards -> 3.54 TB primaries / 6.83 TB on disk, 12.7 GB/shard, 569 GB/node. Ingested at
+      81.5K docs/s aggregate on 3 loader workers (`loader-fleet.cfn.yaml` + `fleet_load.py`).
+- [x] **Fidelity-scale pillar run** (`results/fidelity-1d/`): Perf 75 FAST / 10 ACCEPTABLE / 3 SLOW,
+      0 errors; L1/L2/L3 in threshold (heap exactly on the 85% line); U1-U6 pass, U7 skipped.
+      **Perf does NOT pass §4.2**: `rex` 33% and `dedup` 50% and `simple-search` 83% miss the
+      >=90% FAST gate; `rex` (100%) and `simple-search` (50%) miss the <=20% SLOW-at-1d gate.
+
 ### Open
 
-- [ ] **Authoritative wide run (M7)**: 250M wide re-ingest on the EC2 loader -> snapshot
-      `mock-250m-wide` -> all three pillars -> `report/diff.py` vs the 75-field baseline.
-      Needs refreshed AWS credentials for the team account.
-- [ ] Tier-1 `make up` smoke (needs a running Docker daemon), then `make up-secure` + `make wlm-setup`
-      + `make usecase-wlm` for the first real U7 numbers.
+- [ ] **U7 for real on Tier 2** — managed AWS *does* expose WLM (see above); needs the two FGAC
+      identities provisioned (`python3 -m suite.wlm --provision`) and the scenario run.
+- [ ] File the two gate-breaking findings: leading-wildcard `LIKE` on `body` (61.7s at 1d, up from
+      48.9s at 250M) and `rex` over a scaled day (61.8s / 52.6s).
+- [ ] Fix two methodology gaps the fidelity run exposed: the catalogue's **absolute** time window
+      makes U2/U4/U5 repeat-query cache hits (0.04-0.4s vs P1's seconds) instead of modelling a
+      rolling `now-1h` dashboard; and L2's per-rung sample is too short (p95 *falls* as N rises).
+- [ ] Turn AutoTune OFF on the domain (spec calls for it off; it is currently ENABLED).
+- [ ] Tier-1 `make up` smoke (needs a running Docker daemon).
 - [ ] AWS observability sink domain + the four dashboards / three alerts (§3.4).
-- [ ] Optionally file the leading-wildcard `LIKE` on `body` finding (48.9s, NEW-SLOW) as a ticket.
 
-## WLM / U7 is Tier-1 only
+## WLM / U7
 
-Amazon OpenSearch Service exposes neither `_wlm` nor `_rules`, and `wlm.workload_group.mode` is not
-one of the allowlisted `_cluster/settings` keys, so the §3.3 policy cannot be loaded on Tier 2 — U7
-runs on Tier 1 with the security plugin on. `u7()` self-skips with that reason elsewhere.
+Runs on **either tier**. Managed Amazon OpenSearch Service does expose workload management on 3.5 —
+verified 2026-09-18: `_wlm/workload_group`, `_wlm/stats`, `_rules/workload_group` all answer and
+`wlm.workload_group.mode` is settable (the AWS "supported operations" page is stale on this). Tier 1
+with the security plugin on is the cheap loop for iterating on the scenario. `u7()` self-skips with a
+specific reason (no WLM / no identities / groups not provisioned).
 
 Plan §3.3 says the groups differ by "priority"; WLM has no priority field. The equivalent is
 `resiliency_mode`: `dashboards` is `soft`, `adhoc` is `enforced` — which is what makes U7's 429s

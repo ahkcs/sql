@@ -13,8 +13,10 @@ Full: drop --short/--think (real 30s/1m cadences, 20-30s think-time).
 U7 additionally needs the §3.3 WLM policy and the two identities:
   export PPL_DASH_AUTH=dash_user:PW PPL_ADHOC_AUTH=adhoc_user:PW
   python3 -m suite.wlm --host ... --auth admin:PW --provision
-It self-skips with a reason when WLM or an identity is missing — including on
-Amazon OpenSearch Service, which does not expose _wlm (so U7 is Tier 1 only).
+It self-skips with a specific reason when WLM or an identity is missing.
+Amazon OpenSearch Service DOES expose WLM on 3.5 (verified: _wlm/workload_group,
+_wlm/stats, _rules/workload_group all answer, and wlm.workload_group.mode is
+settable), so U7 runs on Tier 2 as well as Tier 1.
 """
 import argparse
 import itertools
@@ -214,9 +216,8 @@ def u7(host, admin_http, duration, dash_auth, adhoc_auth, http_factory=make_http
     p = wlm.paths(admin_http)
     if p is None:
         out.update(verdict="SKIPPED",
-                   reason="cluster does not expose _wlm/_rules. Amazon OpenSearch Service "
-                          "supports neither, and wlm.*.mode is not an allowlisted cluster "
-                          "setting -> run U7 on Tier 1 (infra/local, security enabled).")
+                   reason="cluster does not expose _wlm/_rules (needs OpenSearch >= 2.18 with "
+                          "workload management; managed AWS domains do expose it on 3.5).")
         return out
     group_path, rules_path, mode_setting = p
     if not (dash_auth and adhoc_auth):
