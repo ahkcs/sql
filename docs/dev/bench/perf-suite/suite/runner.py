@@ -55,6 +55,20 @@ def make_http(host, auth):
     return http
 
 
+# Adaptive rep policy (revisited post-env, per sawiddis/penghuo): more measured
+# samples where they're cheap (fast queries -> real p95), fewer where each rep is
+# expensive. Tiers keyed on a calibration run's latency: (upper_bound_s, warmups,
+# measured). Warmups INCLUDE the calibration run.
+REP_TIERS = [(1.0, 3, 10), (5.0, 2, 6), (20.0, 1, 4), (60.0, 1, 3), (float("inf"), 1, 2)]
+
+
+def pick_reps(cal_s):
+    for hi, warm, meas in REP_TIERS:
+        if cal_s < hi:
+            return warm, meas
+    return REP_TIERS[-1][1], REP_TIERS[-1][2]
+
+
 def run_ppl(http, ppl):
     t0 = time.perf_counter()
     status, resp = http("POST", "/_plugins/_ppl", json.dumps({"query": ppl}))
@@ -111,8 +125,11 @@ def main():
     ap.add_argument("--as-user", dest="as_user",
                     help="named identity resolved from the environment (suite/identities.py): "
                          "admin | dash_user | adhoc_user. Overrides --auth.")
-    ap.add_argument("--reps", type=int, default=3)
-    ap.add_argument("--warmup", type=int, default=1)
+    ap.add_argument("--reps", type=int, default=3, help="fixed-policy measured reps")
+    ap.add_argument("--warmup", type=int, default=1, help="fixed-policy warmups")
+    ap.add_argument("--rep-policy", choices=["adaptive", "fixed"], default="adaptive",
+                    help="adaptive: reps chosen per query from a calibration run "
+                         "(more samples for fast queries, fewer for slow); fixed: --warmup/--reps")
     ap.add_argument("--time-ranges", default="5m,15m,1h,1d")
     ap.add_argument("--wide", action="store_true", help="also 3d,7d")
     ap.add_argument("--category", action="append", help="restrict to categories")
@@ -146,8 +163,11 @@ def main():
     http = make_http(args.host, auth)
 
     result = {"run": runinfo.header("perf", args.host, as_user=args.as_user,
+                                    rep_policy=args.rep_policy,
+                                    rep_tiers=(REP_TIERS if args.rep_policy == "adaptive" else None),
                                     reps=args.reps, warmup=args.warmup,
-                                    time_ranges=trs, loaded_docs=args.loaded_docs),
+                                    time_ranges=trs, loaded_docs=args.loaded_docs,
+                                    unsupported_commands=getattr(catalogue, "UNSUPPORTED_ON_35", [])),
               "cluster_metrics": {}, "perf": [], "correctness": []}
 
     base = metrics.snapshot(http)
@@ -166,22 +186,30 @@ def main():
     for q in cat:
         for tr in trs:
             ppl = catalogue.full_query(q, tr)
-            for _ in range(args.warmup):
+            if args.rep_policy == "adaptive":
+                cal = run_ppl(http, ppl)              # calibration = first warmup (discarded)
+                warmups, measured = pick_reps(cal["s"])
+                extra_warm = max(0, warmups - 1)      # calibration already counts as 1 warmup
+                cal_s = round(cal["s"], 3)
+            else:
+                warmups, measured, extra_warm, cal_s = args.warmup, args.reps, args.warmup, None
+            for _ in range(extra_warm):
                 run_ppl(http, ppl)
             samples, oks, errs = [], 0, set()
-            for _ in range(args.reps):
+            for _ in range(measured):
                 r = run_ppl(http, ppl)
                 samples.append(r["s"])
                 oks += r["ok"]
                 if r["err"]:
                     errs.add(r["err"])
-            ok_all = oks == args.reps
+            ok_all = oks == measured
             p95 = pct(samples, 95)
             rec = {"id": q.id, "category": q.category, "source": q.source, "time_range": tr,
                    "known_slow": q.known_slow, "ppl": ppl,
+                   "warmups": warmups, "measured": measured, "cal_s": cal_s,
                    "p50_s": round(pct(samples, 50), 3), "p95_s": round(p95, 3),
                    "max_s": round(max(samples), 3), "mean_s": round(statistics.mean(samples), 3),
-                   "ok": ok_all, "errors": args.reps - oks, "err_types": sorted(errs),
+                   "ok": ok_all, "errors": measured - oks, "err_types": sorted(errs),
                    "verdict": verdicts.latency_verdict(p95, ok_all)}
             result["perf"].append(rec)
             done += 1
