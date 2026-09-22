@@ -36,7 +36,7 @@ def ssl_ctx():
     return None
 
 
-def make_http(host, auth):
+def make_http(host, auth, timeout=310):
     hdr = {"Content-Type": "application/json"}
     if auth:
         hdr["Authorization"] = "Basic " + base64.b64encode(auth.encode()).decode()
@@ -46,7 +46,7 @@ def make_http(host, auth):
         data = body.encode() if isinstance(body, str) else body
         r = urllib.request.Request(host + path, data=data, method=method, headers=hdr)
         try:
-            with urllib.request.urlopen(r, timeout=310, context=ctx) as resp:
+            with urllib.request.urlopen(r, timeout=timeout, context=ctx) as resp:
                 return resp.status, resp.read().decode()
         except urllib.error.HTTPError as e:
             return e.code, e.read().decode()
