@@ -249,14 +249,23 @@ def _u5_actions(http, win, dash=None, adhoc=None):
     }
 
 
-def u5(http, win, duration, solo_reps, dash=None, adhoc=None):
-    """Multi-user mixed, measured against each user's own solo baseline."""
+def u5(http, win, duration, solo_reps, warmup_reps=2, dash=None, adhoc=None):
+    """Multi-user mixed, measured against each user's own solo baseline.
+
+    The baseline is warmed first. With a cold baseline the mixed phase — which
+    runs for minutes and warms the page cache and JVM — comes out FASTER than
+    solo, so every degradation ratio lands below 1.0 and measures warmup instead
+    of contention.
+    """
     actions = _u5_actions(http, win, dash, adhoc)
 
     solo = {}
     for name, fn in actions.items():
-        lat = [fn(i) for i in range(solo_reps)]
-        solo[name] = {"n": len(lat), "median_s": round(statistics.median(lat), 3),
+        for i in range(warmup_reps):
+            fn(i)
+        lat = [fn(warmup_reps + i) for i in range(solo_reps)]
+        solo[name] = {"n": len(lat), "warmup_reps": warmup_reps,
+                      "median_s": round(statistics.median(lat), 3),
                       "p95_s": round(pct(lat, 95), 3)}
 
     per, lock, end = {k: [] for k in actions}, threading.Lock(), time.time() + duration
@@ -330,7 +339,12 @@ def _side_summary(samples):
             "throttled_429": sum(1 for r in samples if r["status"] == 429)}
 
 
-def _u7_phase(dash_http, adhoc_http, win, duration, noisy):
+def _u7_phase(dash_http, adhoc_http, win, duration, noisy, noisy_threads=1):
+    """One phase. `noisy_threads` adhoc loops run in parallel: a single serial loop
+    barely dents the dashboards user (~1.1x), which makes the isolation gates pass
+    without ever creating contention to isolate against. Load-pillar data puts the
+    heavy-query ceiling near 25 concurrent, so the neighbour needs to be in that
+    range for WLM-off to actually hurt."""
     panels, adhoc_q = DASHBOARD_VARIANTS["ops_overview"], noisy_queries(win)
     end = time.time() + duration
     dash_runs, adhoc_runs, threads = [], [], []
@@ -348,23 +362,26 @@ def _u7_phase(dash_http, adhoc_http, win, duration, noisy):
     threads.append(threading.Thread(target=_loop_until, args=(dash_once, end, dash_runs),
                                     daemon=True))
     if noisy:
-        cyc = itertools.cycle(adhoc_q)
+        acount = itertools.count()
 
         def adhoc_once():
-            r = run_ppl(adhoc_http, next(cyc))
+            r = run_ppl(adhoc_http, adhoc_q[next(acount) % len(adhoc_q)])
             return {"s": r["s"], "ok": r["ok"], "status": r["status"]}
-        threads.append(threading.Thread(target=_loop_until, args=(adhoc_once, end, adhoc_runs),
-                                        daemon=True))
+        for _ in range(max(1, noisy_threads)):
+            threads.append(threading.Thread(target=_loop_until,
+                                            args=(adhoc_once, end, adhoc_runs), daemon=True))
     for t in threads:
         t.start()
     for t in threads:
         t.join()
     return {"dashboards_user": _side_summary(dash_runs),
             "adhoc_user": _side_summary(adhoc_runs) if noisy else None,
-            "noisy_pool_size": len(adhoc_q) if noisy else 0}
+            "noisy_pool_size": len(adhoc_q) if noisy else 0,
+            "noisy_threads": noisy_threads if noisy else 0}
 
 
-def u7(host, admin_http, win, duration, dash_auth, adhoc_auth, http_factory=make_http):
+def u7(host, admin_http, win, duration, dash_auth, adhoc_auth, noisy_threads=20,
+       http_factory=make_http):
     """Noisy-neighbor isolation (plan §2.3/U7, gates in §4.4): solo -> WLM off -> WLM on."""
     out = {"scenario": "U7 WLM noisy-neighbor", "id": "u7"}
     p = wlm.paths(admin_http)
@@ -390,6 +407,7 @@ def u7(host, admin_http, win, duration, dash_auth, adhoc_auth, http_factory=make
     dash_http, adhoc_http = http_factory(host, dash_auth), http_factory(host, adhoc_auth)
     out["group_ids"] = ids
     out["phases"] = {}
+    out["noisy_threads"] = noisy_threads
     out["phases"]["solo"] = _u7_phase(dash_http, adhoc_http, win, duration, noisy=False)
 
     for mode in ("disabled", "enabled"):
@@ -400,7 +418,8 @@ def u7(host, admin_http, win, duration, dash_auth, adhoc_auth, http_factory=make
             return out
         time.sleep(2)
         pre = wlm.stats(admin_http)
-        phase = _u7_phase(dash_http, adhoc_http, win, duration, noisy=True)
+        phase = _u7_phase(dash_http, adhoc_http, win, duration, noisy=True,
+                          noisy_threads=noisy_threads)
         phase["wlm_stats_delta"] = wlm.delta(pre, wlm.stats(admin_http))
         out["phases"]["wlm_%s" % ("on" if mode == "enabled" else "off")] = phase
 
@@ -437,7 +456,11 @@ def main():
                          "fixed: pin an absolute window (cache-warm, the old behaviour)")
     ap.add_argument("--window-step", type=int, default=30,
                     help="seconds the rolling window slides per iteration")
-    ap.add_argument("--solo-reps", type=int, default=3, help="U5 solo-baseline reps per user")
+    ap.add_argument("--solo-reps", type=int, default=6, help="U5 solo-baseline reps per user")
+    ap.add_argument("--solo-warmup", type=int, default=2,
+                    help="U5 discarded warmup reps before the solo baseline")
+    ap.add_argument("--u7-noisy-threads", type=int, default=20,
+                    help="U7 parallel ad-hoc loops; 1 is too weak to create contention")
     ap.add_argument("--short", action="store_true", help="tiny durations for validation")
     ap.add_argument("--out", default="results/usecase.json")
     args = ap.parse_args()
@@ -456,10 +479,14 @@ def main():
     u5_dur = 600 if not args.short else 15
     u7_dur = 300 if not args.short else 15
     solo_reps = args.solo_reps if not args.short else 1
+    solo_warmup = args.solo_warmup if not args.short else 0
+    noisy_threads = args.u7_noisy_threads if not args.short else 2
 
     out = {"run": runinfo.header("usecase", args.host, as_user=args.as_user,
                                  identities=identities.configured(),
                                  cache_mode=args.cache_mode, window_step_s=args.window_step,
+                                 solo_reps=args.solo_reps, solo_warmup=args.solo_warmup,
+                                 u7_noisy_threads=args.u7_noisy_threads,
                                  index_patterns=INDEX_PATTERNS,
                                  dashboard_variants=sorted(DASHBOARD_VARIANTS)),
            "host": args.host, "baseline": metrics.snapshot(http), "results": []}
@@ -469,9 +496,9 @@ def main():
         "u2": lambda: u2(http, win, u2_cad, u2_dur),
         "u3": lambda: u3(http, win, args.think),
         "u4": lambda: u4(http, win, u4_cad, u4_dur),
-        "u5": lambda: u5(http, win, u5_dur, solo_reps, dash_http, adhoc_http),
+        "u5": lambda: u5(http, win, u5_dur, solo_reps, solo_warmup, dash_http, adhoc_http),
         "u6": lambda: u6(http, win),
-        "u7": lambda: u7(args.host, http, win, u7_dur, dash_auth, adhoc_auth),
+        "u7": lambda: u7(args.host, http, win, u7_dur, dash_auth, adhoc_auth, noisy_threads),
     }
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     for key in ["u1", "u2", "u3", "u4", "u5", "u6", "u7"]:
