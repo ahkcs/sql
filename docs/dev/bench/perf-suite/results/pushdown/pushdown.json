@@ -1,0 +1,2133 @@
+{
+  "run": {
+    "run_id": "pushdown-20260923T163753Z-9e7b",
+    "pillar": "pushdown",
+    "timestamp": "2026-09-23T16:37:53+00:00",
+    "host": "https://search-ppl-perf-tier2-hfmrk3ra3wgzmo7vnp7juptyny.us-east-1.es.amazonaws.com",
+    "tier": "tier2",
+    "git_sha": null,
+    "schema_version": "0.2.0",
+    "wlm_policy_version": "1.0",
+    "as_user": "admin",
+    "index": "mock-mixed-pi",
+    "points": 107,
+    "missing_types": [
+      "boolean",
+      "double",
+      "float",
+      "scaled_float",
+      "half_float",
+      "unsigned_long",
+      "ip",
+      "nested",
+      "flattened",
+      "wildcard",
+      "alias"
+    ],
+    "classifier_version": 2,
+    "note": "verdicts recomputed with classifier v2: reads flags from PushDownContext only, requires the op own work to push (time-range FILTER no longer counts), and treats requestedTotalSize=MAX as a risk only when no reduction/limit pushed"
+  },
+  "points": [
+    {
+      "type_label": "keyword_lowcard",
+      "field": "severityText",
+      "mapped_type": "keyword",
+      "op": "groupby",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats count() by severityText",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($0, '2026-04-10 23:00:00'), AGGREGATION->rel#552198:LogicalAggregate.NONE.[](input=RelSubset#552172,group={1},count()=COUNT()), PROJECT->[count(), severityText], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"severityText\":{\"terms\":{\"field\":\"severityText\",\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=10000, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "keyword_lowcard",
+      "field": "severityText",
+      "mapped_type": "keyword",
+      "op": "dc",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats dc(severityText)",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->AND(>=($0, '2026-04-10 23:00:00'), IS NOT NULL($1)), AGGREGATION->rel#554314:LogicalAggregate.NONE.[](input=RelSubset#554291,group={},dc(severityText)=COUNT(DISTINCT $1)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"exists\":{\"field\":\"severityText\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"aggregations\":{\"dc(severityText)\":{\"cardinality\":{\"field\":\"severityText\"}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "keyword_lowcard",
+      "field": "severityText",
+      "mapped_type": "keyword",
+      "op": "count_field",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats count(severityText)",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->AND(>=($0, '2026-04-10 23:00:00'), IS NOT NULL($1)), AGGREGATION->rel#546995:LogicalAggregate.NONE.[](input=RelSubset#546972,group={},count(severityText)=COUNT($1)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"exists\":{\"field\":\"severityText\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"track_total_hits\":2147483647}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "keyword_lowcard",
+      "field": "severityText",
+      "mapped_type": "keyword",
+      "op": "min_max",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats min(severityText) as mn, max(severityText) as mx",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($0, '2026-04-10 23:00:00'), AGGREGATION->rel#554409:LogicalAggregate.NONE.[](input=RelSubset#554386,group={},mn=MIN($1),mx=MAX($1)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"mn\":{\"top_hits\":{\"from\":0,\"size\":1,\"version\":false,\"seq_no_primary_term\":false,\"explain\":false,\"_source\":false,\"fields\":[{\"field\":\"severityText\"}],\"sort\":[{\"severityText\":{\"order\":\"asc\"}}]}},\"mx\":{\"top_hits\":{\"from\":0,\"size\":1,\"version\":false,\"seq_no_primary_term\":false,\"explain\":false,\"_source\":false,\"fields\":[{\"field\":\"severityText\"}],\"sort\":[{\"severityText\":{\"order\":\"desc\"}}]}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "keyword_lowcard",
+      "field": "severityText",
+      "mapped_type": "keyword",
+      "op": "filter_eq",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where severityText = 'x' | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->AND(>=($10, '2026-04-10 23:00:00'), =($11, 'x')), LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"term\":{\"severityText\":{\"value\":\"x\",\"boost\":1.0}}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "keyword_lowcard",
+      "field": "severityText",
+      "mapped_type": "keyword",
+      "op": "sort",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | sort severityText | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": true,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->>=($10, '2026-04-10 23:00:00'), SORT->[{\n  \"severityText\" : {\n    \"order\" : \"asc\",\n    \"missing\" : \"_first\"\n  }\n}], LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]},\"sort\":[{\"severityText\":{\"order\":\"asc\",\"missing\":\"_first\"}}]}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "keyword_lowcard",
+      "field": "severityText",
+      "mapped_type": "keyword",
+      "op": "dedup",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | dedup severityText | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($10, '2026-04-10 23:00:00'), AGGREGATION->rel#552311:LogicalAggregate.NONE.[](input=LogicalProject#552309,group={0},agg#0=LITERAL_AGG(1)), LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":100,\"sources\":[{\"severityText\":{\"terms\":{\"field\":\"severityText\",\"missing_bucket\":false,\"order\":\"asc\"}}}]},\"aggregations\":{\"$f1\":{\"top_hits\":{\"from\":0,\"size\":1,\"version\":false,\"seq_no_primary_term\":false,\"explain\":false,\"fields\":[{\"field\":\"severityText\"},{\"field\":\"traceId\"},{\"field\":\"flags\"},{\"field\":\"severityNumber\"},{\"field\":\"body\"},{\"field\":\"serviceName\"},{\"field\":\"schemaUrl\"},{\"field\":\"spanId\"},{\"field\":\"@timestamp\"},{\"field\":\"@version\"},{\"field\":\"droppedAttributesCount\"},{\"field\":\"time\"},{\"field\":\"observedTimestamp\"}]}}}}}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "keyword_lowcard",
+      "field": "severityText",
+      "mapped_type": "keyword",
+      "op": "top",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | top 10 severityText",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [
+        "Calc",
+        "Limit",
+        "Window"
+      ],
+      "unbounded_scan": true,
+      "physical": "EnumerableLimit(fetch=[10000])\n  EnumerableCalc(expr#0..2=[{inputs}], expr#3=[10], expr#4=[<=($t2, $t3)], proj#0..1=[{exprs}], $condition=[$t4])\n    EnumerableWindow(window#0=[window(order by [1 DESC, 0] rows between UNBOUNDED PRECEDING and CURRENT ROW aggs [ROW_NUMBER()])])\n      CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($0, '2026-04-10 23:00:00'), AGGREGATION->rel#552418:LogicalAggregate.NONE.[](input=RelSubset#552386,group={1},count=COUNT())], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"severityText\":{\"terms\":{\"field\":\"severityText\",\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "keyword_lowcard",
+      "field": "severityText",
+      "mapped_type": "keyword",
+      "op": "rare",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | rare severityText",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [
+        "Calc",
+        "Limit",
+        "Window"
+      ],
+      "unbounded_scan": true,
+      "physical": "EnumerableLimit(fetch=[10000])\n  EnumerableCalc(expr#0..2=[{inputs}], expr#3=[10], expr#4=[<=($t2, $t3)], proj#0..1=[{exprs}], $condition=[$t4])\n    EnumerableWindow(window#0=[window(order by [1, 0] rows between UNBOUNDED PRECEDING and CURRENT ROW aggs [ROW_NUMBER()])])\n      CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($0, '2026-04-10 23:00:00'), AGGREGATION->rel#556414:LogicalAggregate.NONE.[](input=RelSubset#556382,group={1},count=COUNT())], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"severityText\":{\"terms\":{\"field\":\"severityText\",\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "keyword_lowcard",
+      "field": "severityText",
+      "mapped_type": "keyword",
+      "op": "like",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where like(severityText, '%x%') | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->AND(>=($10, '2026-04-10 23:00:00'), ILIKE($11, '%x%', '\\')), LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"wildcard\":{\"severityText\":{\"wildcard\":\"*x*\",\"case_insensitive\":true,\"boost\":1.0}}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "keyword_lowcard",
+      "field": "severityText",
+      "mapped_type": "keyword",
+      "op": "isnull",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where isnull(severityText) | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->AND(>=($10, '2026-04-10 23:00:00'), IS NULL($11)), LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"bool\":{\"must_not\":[{\"exists\":{\"field\":\"severityText\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "keyword_highcard",
+      "field": "resource.attributes.k8s.pod.name",
+      "mapped_type": "keyword",
+      "op": "groupby",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats count() by resource.attributes.k8s.pod.name",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#546188:LogicalAggregate.NONE.[](input=RelSubset#546162,group={0},count()=COUNT()), PROJECT->[count(), resource.attributes.k8s.pod.name], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"resource.attributes.k8s.pod.name\":{\"terms\":{\"field\":\"resource.attributes.k8s.pod.name\",\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=10000, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "keyword_highcard",
+      "field": "resource.attributes.k8s.pod.name",
+      "mapped_type": "keyword",
+      "op": "dc",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats dc(resource.attributes.k8s.pod.name)",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->AND(>=($1, '2026-04-10 23:00:00'), IS NOT NULL($0)), AGGREGATION->rel#553759:LogicalAggregate.NONE.[](input=RelSubset#553736,group={},dc(resource.attributes.k8s.pod.name)=COUNT(DISTINCT $0)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"exists\":{\"field\":\"resource.attributes.k8s.pod.name\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"aggregations\":{\"dc(resource.attributes.k8s.pod.name)\":{\"cardinality\":{\"field\":\"resource.attributes.k8s.pod.name\"}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "keyword_highcard",
+      "field": "resource.attributes.k8s.pod.name",
+      "mapped_type": "keyword",
+      "op": "count_field",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats count(resource.attributes.k8s.pod.name)",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->AND(>=($1, '2026-04-10 23:00:00'), IS NOT NULL($0)), AGGREGATION->rel#547081:LogicalAggregate.NONE.[](input=RelSubset#547058,group={},count(resource.attributes.k8s.pod.name)=COUNT($0)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"exists\":{\"field\":\"resource.attributes.k8s.pod.name\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"track_total_hits\":2147483647}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "keyword_highcard",
+      "field": "resource.attributes.k8s.pod.name",
+      "mapped_type": "keyword",
+      "op": "min_max",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats min(resource.attributes.k8s.pod.name) as mn, max(resource.attributes.k8s.pod.name) as mx",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#553854:LogicalAggregate.NONE.[](input=RelSubset#553831,group={},mn=MIN($0),mx=MAX($0)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"mn\":{\"top_hits\":{\"from\":0,\"size\":1,\"version\":false,\"seq_no_primary_term\":false,\"explain\":false,\"_source\":false,\"fields\":[{\"field\":\"resource.attributes.k8s.pod.name\"}],\"sort\":[{\"resource.attributes.k8s.pod.name\":{\"order\":\"asc\"}}]}},\"mx\":{\"top_hits\":{\"from\":0,\"size\":1,\"version\":false,\"seq_no_primary_term\":false,\"explain\":false,\"_source\":false,\"fields\":[{\"field\":\"resource.attributes.k8s.pod.name\"}],\"sort\":[{\"resource.attributes.k8s.pod.name\":{\"order\":\"desc\"}}]}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "keyword_highcard",
+      "field": "resource.attributes.k8s.pod.name",
+      "mapped_type": "keyword",
+      "op": "filter_eq",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where resource.attributes.k8s.pod.name = 'x' | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, resource.attributes.k8s.pod.name, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->AND(>=($11, '2026-04-10 23:00:00'), =($4, 'x')), LIMIT->100, PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"term\":{\"resource.attributes.k8s.pod.name\":{\"value\":\"x\",\"boost\":1.0}}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "keyword_highcard",
+      "field": "resource.attributes.k8s.pod.name",
+      "mapped_type": "keyword",
+      "op": "sort",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | sort resource.attributes.k8s.pod.name | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": true,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, resource.attributes.k8s.pod.name, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->>=($11, '2026-04-10 23:00:00'), SORT->[{\n  \"resource.attributes.k8s.pod.name\" : {\n    \"order\" : \"asc\",\n    \"missing\" : \"_first\"\n  }\n}], LIMIT->100, PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]},\"sort\":[{\"resource.attributes.k8s.pod.name\":{\"order\":\"asc\",\"missing\":\"_first\"}}]}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "keyword_highcard",
+      "field": "resource.attributes.k8s.pod.name",
+      "mapped_type": "keyword",
+      "op": "dedup",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | dedup resource.attributes.k8s.pod.name | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($11, '2026-04-10 23:00:00'), AGGREGATION->rel#546891:LogicalAggregate.NONE.[](input=LogicalProject#546889,group={0},agg#0=LITERAL_AGG(1)), LIMIT->100, PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":100,\"sources\":[{\"resource.attributes.k8s.pod.name\":{\"terms\":{\"field\":\"resource.attributes.k8s.pod.name\",\"missing_bucket\":false,\"order\":\"asc\"}}}]},\"aggregations\":{\"$f1\":{\"top_hits\":{\"from\":0,\"size\":1,\"version\":false,\"seq_no_primary_term\":false,\"explain\":false,\"fields\":[{\"field\":\"resource.attributes.k8s.pod.name\"},{\"field\":\"traceId\"},{\"field\":\"flags\"},{\"field\":\"severityNumber\"},{\"field\":\"body\"},{\"field\":\"serviceName\"},{\"field\":\"schemaUrl\"},{\"field\":\"spanId\"},{\"field\":\"@timestamp\"},{\"field\":\"severityText\"},{\"field\":\"@version\"},{\"field\":\"droppedAttributesCount\"},{\"field\":\"time\"},{\"field\":\"observedTimestamp\"}]}}}}}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "keyword_highcard",
+      "field": "resource.attributes.k8s.pod.name",
+      "mapped_type": "keyword",
+      "op": "top",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | top 10 resource.attributes.k8s.pod.name",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [
+        "Calc",
+        "Limit",
+        "Window"
+      ],
+      "unbounded_scan": true,
+      "physical": "EnumerableLimit(fetch=[10000])\n  EnumerableCalc(expr#0..2=[{inputs}], expr#3=[10], expr#4=[<=($t2, $t3)], proj#0..1=[{exprs}], $condition=[$t4])\n    EnumerableWindow(window#0=[window(order by [1 DESC, 0] rows between UNBOUNDED PRECEDING and CURRENT ROW aggs [ROW_NUMBER()])])\n      CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#547013:LogicalAggregate.NONE.[](input=RelSubset#546981,group={0},count=COUNT())], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"resource.attributes.k8s.pod.name\":{\"terms\":{\"field\":\"resource.attributes.k8s.pod.name\",\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "keyword_highcard",
+      "field": "resource.attributes.k8s.pod.name",
+      "mapped_type": "keyword",
+      "op": "rare",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | rare resource.attributes.k8s.pod.name",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [
+        "Calc",
+        "Limit",
+        "Window"
+      ],
+      "unbounded_scan": true,
+      "physical": "EnumerableLimit(fetch=[10000])\n  EnumerableCalc(expr#0..2=[{inputs}], expr#3=[10], expr#4=[<=($t2, $t3)], proj#0..1=[{exprs}], $condition=[$t4])\n    EnumerableWindow(window#0=[window(order by [1, 0] rows between UNBOUNDED PRECEDING and CURRENT ROW aggs [ROW_NUMBER()])])\n      CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#553965:LogicalAggregate.NONE.[](input=RelSubset#553933,group={0},count=COUNT())], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"resource.attributes.k8s.pod.name\":{\"terms\":{\"field\":\"resource.attributes.k8s.pod.name\",\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "keyword_highcard",
+      "field": "resource.attributes.k8s.pod.name",
+      "mapped_type": "keyword",
+      "op": "like",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where like(resource.attributes.k8s.pod.name, '%x%') | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, resource.attributes.k8s.pod.name, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->AND(>=($11, '2026-04-10 23:00:00'), ILIKE($4, '%x%', '\\')), LIMIT->100, PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"wildcard\":{\"resource.attributes.k8s.pod.name\":{\"wildcard\":\"*x*\",\"case_insensitive\":true,\"boost\":1.0}}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "keyword_highcard",
+      "field": "resource.attributes.k8s.pod.name",
+      "mapped_type": "keyword",
+      "op": "isnull",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where isnull(resource.attributes.k8s.pod.name) | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, resource.attributes.k8s.pod.name, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->AND(>=($11, '2026-04-10 23:00:00'), IS NULL($4)), LIMIT->100, PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"bool\":{\"must_not\":[{\"exists\":{\"field\":\"resource.attributes.k8s.pod.name\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "text_bare",
+      "field": "body",
+      "mapped_type": "text (no subfield)",
+      "op": "groupby",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats count() by body",
+      "verdict": "FALLBACK_UNBOUNDED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [
+        "Aggregate",
+        "Calc",
+        "Limit"
+      ],
+      "unbounded_scan": true,
+      "physical": "EnumerableLimit(fetch=[10000])\n  EnumerableCalc(expr#0..1=[{inputs}], count()=[$t1], body=[$t0])\n    EnumerableAggregate(group=[{0}], count()=[COUNT()])\n      CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[body, @timestamp], FILTER->>=($1, '2026-04-10 23:00:00'), PROJECT->[body]], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"_source\":{\"includes\":[\"body\"],\"excludes\":[]}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "text_bare",
+      "field": "body",
+      "mapped_type": "text (no subfield)",
+      "op": "dc",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats dc(body)",
+      "verdict": "FALLBACK_UNBOUNDED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [
+        "Aggregate",
+        "Limit"
+      ],
+      "unbounded_scan": true,
+      "physical": "EnumerableLimit(fetch=[10000])\n  EnumerableAggregate(group=[{}], dc(body)=[COUNT($0)])\n    EnumerableAggregate(group=[{0}])\n      CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[body, @timestamp], FILTER->AND(>=($1, '2026-04-10 23:00:00'), IS NOT NULL($0)), PROJECT->[body]], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"exists\":{\"field\":\"body\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"body\"],\"excludes\":[]}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "text_bare",
+      "field": "body",
+      "mapped_type": "text (no subfield)",
+      "op": "count_field",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats count(body)",
+      "verdict": "FALLBACK_UNBOUNDED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [
+        "Aggregate",
+        "Limit"
+      ],
+      "unbounded_scan": true,
+      "physical": "EnumerableLimit(fetch=[10000])\n  EnumerableAggregate(group=[{}], count(body)=[COUNT($0)])\n    CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[body, @timestamp], FILTER->AND(>=($1, '2026-04-10 23:00:00'), IS NOT NULL($0)), PROJECT->[body]], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"exists\":{\"field\":\"body\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"body\"],\"excludes\":[]}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "text_bare",
+      "field": "body",
+      "mapped_type": "text (no subfield)",
+      "op": "min_max",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats min(body) as mn, max(body) as mx",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#556624:LogicalAggregate.NONE.[](input=RelSubset#556601,group={},mn=MIN($0),mx=MAX($0)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"mn\":{\"top_hits\":{\"from\":0,\"size\":1,\"version\":false,\"seq_no_primary_term\":false,\"explain\":false,\"_source\":false,\"fields\":[{\"field\":\"body\"}]}},\"mx\":{\"top_hits\":{\"from\":0,\"size\":1,\"version\":false,\"seq_no_primary_term\":false,\"explain\":false,\"_source\":false,\"fields\":[{\"field\":\"body\"}]}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "text_bare",
+      "field": "body",
+      "mapped_type": "text (no subfield)",
+      "op": "filter_eq",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where body = 'x' | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": false,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], SCRIPT->AND(>=($10, '2026-04-10 23:00:00'), =($6, 'x')), LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"script\":{\"script\":{\"source\":\"{\\\"langType\\\":\\\"calcite\\\",\\\"script\\\":\\\"rO0ABXQBeXsKICAib3AiOiB7CiAgICAibmFtZSI6ICI9IiwKICAgICJraW5kIjogIkVRVUFMUyIsCiAgICAic3ludGF4IjogIkJJTkFSWSIKICB9LAogICJvcGVyYW5kcyI6IFsKICAgIHsKICAgICAgImR5bmFtaWNQYXJhbSI6IDAsCiAgICAgICJ0eXBlIjogewogICAgICAgICJ0eXBlIjogIlZBUkNIQVIiLAogICAgICAgICJudWxsYWJsZSI6IHRydWUsCiAgICAgICAgInByZWNpc2lvbiI6IC0xCiAgICAgIH0KICAgIH0sCiAgICB7CiAgICAgICJkeW5hbWljUGFyYW0iOiAxLAogICAgICAidHlwZSI6IHsKICAgICAgICAidHlwZSI6ICJWQVJDSEFSIiwKICAgICAgICAibnVsbGFibGUiOiB0cnVlLAogICAgICAgICJwcmVjaXNpb24iOiAtMQogICAgICB9CiAgICB9CiAgXQp9\\\"}\",\"lang\":\"opensearch_compounded_script\",\"params\":{\"utcTimestamp\":1790181477556679758,\"SOURCES\":[1,2],\"DIGESTS\":[\"body\",\"x\"]}},\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "text_bare",
+      "field": "body",
+      "mapped_type": "text (no subfield)",
+      "op": "sort",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | sort body | head 100",
+      "verdict": "FALLBACK_UNBOUNDED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [
+        "Limit"
+      ],
+      "unbounded_scan": true,
+      "physical": "EnumerableLimit(fetch=[10000])\n  CalciteEnumerableTopK(sort0=[$6], dir0=[ASC-nulls-first], fetch=[100])\n    CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->>=($10, '2026-04-10 23:00:00')], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "text_bare",
+      "field": "body",
+      "mapped_type": "text (no subfield)",
+      "op": "dedup",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | dedup body | head 100",
+      "verdict": "FALLBACK_UNBOUNDED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [
+        "Calc",
+        "Limit",
+        "Window"
+      ],
+      "unbounded_scan": true,
+      "physical": "EnumerableLimit(fetch=[10000])\n  EnumerableCalc(expr#0..17=[{inputs}], proj#0..16=[{exprs}])\n    EnumerableLimit(fetch=[100])\n      EnumerableCalc(expr#0..17=[{inputs}], expr#18=[1], expr#19=[<=($t17, $t18)], proj#0..17=[{exprs}], $condition=[$t19])\n        EnumerableWindow(window#0=[window(partition {6} rows between UNBOUNDED PRECEDING and CURRENT ROW aggs [ROW_NUMBER()])])\n          CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->AND(>=($10, '2026-04-10 23:00:00'), IS NOT NULL($6))], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"exists\":{\"field\":\"body\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "text_bare",
+      "field": "body",
+      "mapped_type": "text (no subfield)",
+      "op": "top",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | top 10 body",
+      "verdict": "FALLBACK_UNBOUNDED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [
+        "Aggregate",
+        "Calc",
+        "Limit",
+        "Window"
+      ],
+      "unbounded_scan": true,
+      "physical": "EnumerableLimit(fetch=[10000])\n  EnumerableCalc(expr#0..2=[{inputs}], expr#3=[10], expr#4=[<=($t2, $t3)], proj#0..1=[{exprs}], $condition=[$t4])\n    EnumerableWindow(window#0=[window(order by [1 DESC, 0] rows between UNBOUNDED PRECEDING and CURRENT ROW aggs [ROW_NUMBER()])])\n      EnumerableAggregate(group=[{0}], count=[COUNT()])\n        CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[body, @timestamp], FILTER->>=($1, '2026-04-10 23:00:00'), PROJECT->[body]], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"_source\":{\"includes\":[\"body\"],\"excludes\":[]}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "text_bare",
+      "field": "body",
+      "mapped_type": "text (no subfield)",
+      "op": "rare",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | rare body",
+      "verdict": "FALLBACK_UNBOUNDED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [
+        "Aggregate",
+        "Calc",
+        "Limit",
+        "Window"
+      ],
+      "unbounded_scan": true,
+      "physical": "EnumerableLimit(fetch=[10000])\n  EnumerableCalc(expr#0..2=[{inputs}], expr#3=[10], expr#4=[<=($t2, $t3)], proj#0..1=[{exprs}], $condition=[$t4])\n    EnumerableWindow(window#0=[window(order by [1, 0] rows between UNBOUNDED PRECEDING and CURRENT ROW aggs [ROW_NUMBER()])])\n      EnumerableAggregate(group=[{0}], count=[COUNT()])\n        CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[body, @timestamp], FILTER->>=($1, '2026-04-10 23:00:00'), PROJECT->[body]], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"_source\":{\"includes\":[\"body\"],\"excludes\":[]}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "text_bare",
+      "field": "body",
+      "mapped_type": "text (no subfield)",
+      "op": "like",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where like(body, '%x%') | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": false,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], SCRIPT->AND(>=($10, '2026-04-10 23:00:00'), ILIKE($6, '%x%', '\\')), LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"script\":{\"script\":{\"source\":\"{\\\"langType\\\":\\\"calcite\\\",\\\"script\\\":\\\"rO0ABXQCB3sKICAib3AiOiB7CiAgICAibmFtZSI6ICJJTElLRSIsCiAgICAia2luZCI6ICJMSUtFIiwKICAgICJzeW50YXgiOiAiU1BFQ0lBTCIKICB9LAogICJvcGVyYW5kcyI6IFsKICAgIHsKICAgICAgImR5bmFtaWNQYXJhbSI6IDAsCiAgICAgICJ0eXBlIjogewogICAgICAgICJ0eXBlIjogIlZBUkNIQVIiLAogICAgICAgICJudWxsYWJsZSI6IHRydWUsCiAgICAgICAgInByZWNpc2lvbiI6IC0xCiAgICAgIH0KICAgIH0sCiAgICB7CiAgICAgICJkeW5hbWljUGFyYW0iOiAxLAogICAgICAidHlwZSI6IHsKICAgICAgICAidHlwZSI6ICJWQVJDSEFSIiwKICAgICAgICAibnVsbGFibGUiOiB0cnVlLAogICAgICAgICJwcmVjaXNpb24iOiAtMQogICAgICB9CiAgICB9LAogICAgewogICAgICAiZHluYW1pY1BhcmFtIjogMiwKICAgICAgInR5cGUiOiB7CiAgICAgICAgInR5cGUiOiAiVkFSQ0hBUiIsCiAgICAgICAgIm51bGxhYmxlIjogdHJ1ZSwKICAgICAgICAicHJlY2lzaW9uIjogLTEKICAgICAgfQogICAgfQogIF0KfQ==\\\"}\",\"lang\":\"opensearch_compounded_script\",\"params\":{\"utcTimestamp\":1790181478666025946,\"SOURCES\":[1,2,2],\"DIGESTS\":[\"body\",\"%x%\",\"\\\\\"]}},\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "text_bare",
+      "field": "body",
+      "mapped_type": "text (no subfield)",
+      "op": "isnull",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where isnull(body) | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->AND(>=($10, '2026-04-10 23:00:00'), IS NULL($6)), LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"bool\":{\"must_not\":[{\"exists\":{\"field\":\"body\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "text_multifield",
+      "field": "log.method",
+      "mapped_type": "text (+.keyword)",
+      "op": "groupby",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats count() by log.method",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#551929:LogicalAggregate.NONE.[](input=RelSubset#551903,group={0},count()=COUNT()), PROJECT->[count(), log.method], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"log.method\":{\"terms\":{\"field\":\"log.method.keyword\",\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=10000, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "text_multifield",
+      "field": "log.method",
+      "mapped_type": "text (+.keyword)",
+      "op": "dc",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats dc(log.method)",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->AND(>=($1, '2026-04-10 23:00:00'), IS NOT NULL($0)), AGGREGATION->rel#547133:LogicalAggregate.NONE.[](input=RelSubset#547110,group={},dc(log.method)=COUNT(DISTINCT $0)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"exists\":{\"field\":\"log.method\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"aggregations\":{\"dc(log.method)\":{\"cardinality\":{\"field\":\"log.method.keyword\"}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "text_multifield",
+      "field": "log.method",
+      "mapped_type": "text (+.keyword)",
+      "op": "count_field",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats count(log.method)",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->AND(>=($1, '2026-04-10 23:00:00'), IS NOT NULL($0)), AGGREGATION->rel#552538:LogicalAggregate.NONE.[](input=RelSubset#552515,group={},count(log.method)=COUNT($0)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"exists\":{\"field\":\"log.method\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"track_total_hits\":2147483647}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "text_multifield",
+      "field": "log.method",
+      "mapped_type": "text (+.keyword)",
+      "op": "min_max",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats min(log.method) as mn, max(log.method) as mx",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#552645:LogicalAggregate.NONE.[](input=RelSubset#552622,group={},mn=MIN($0),mx=MAX($0)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"mn\":{\"top_hits\":{\"from\":0,\"size\":1,\"version\":false,\"seq_no_primary_term\":false,\"explain\":false,\"_source\":false,\"fields\":[{\"field\":\"log.method\"}],\"sort\":[{\"log.method.keyword\":{\"order\":\"asc\"}}]}},\"mx\":{\"top_hits\":{\"from\":0,\"size\":1,\"version\":false,\"seq_no_primary_term\":false,\"explain\":false,\"_source\":false,\"fields\":[{\"field\":\"log.method\"}],\"sort\":[{\"log.method.keyword\":{\"order\":\"desc\"}}]}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "text_multifield",
+      "field": "log.method",
+      "mapped_type": "text (+.keyword)",
+      "op": "filter_eq",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where log.method = 'x' | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, log.method, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->AND(>=($11, '2026-04-10 23:00:00'), =($3, 'x')), LIMIT->100, PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"term\":{\"log.method.keyword\":{\"value\":\"x\",\"boost\":1.0}}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "text_multifield",
+      "field": "log.method",
+      "mapped_type": "text (+.keyword)",
+      "op": "sort",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | sort log.method | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": true,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, log.method, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->>=($11, '2026-04-10 23:00:00'), SORT->[{\n  \"log.method.keyword\" : {\n    \"order\" : \"asc\",\n    \"missing\" : \"_first\"\n  }\n}], LIMIT->100, PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]},\"sort\":[{\"log.method.keyword\":{\"order\":\"asc\",\"missing\":\"_first\"}}]}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "text_multifield",
+      "field": "log.method",
+      "mapped_type": "text (+.keyword)",
+      "op": "dedup",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | dedup log.method | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($11, '2026-04-10 23:00:00'), AGGREGATION->rel#552643:LogicalAggregate.NONE.[](input=LogicalProject#552641,group={0},agg#0=LITERAL_AGG(1)), LIMIT->100, PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":100,\"sources\":[{\"log.method\":{\"terms\":{\"field\":\"log.method.keyword\",\"missing_bucket\":false,\"order\":\"asc\"}}}]},\"aggregations\":{\"$f1\":{\"top_hits\":{\"from\":0,\"size\":1,\"version\":false,\"seq_no_primary_term\":false,\"explain\":false,\"fields\":[{\"field\":\"log.method\"},{\"field\":\"traceId\"},{\"field\":\"flags\"},{\"field\":\"severityNumber\"},{\"field\":\"body\"},{\"field\":\"serviceName\"},{\"field\":\"schemaUrl\"},{\"field\":\"spanId\"},{\"field\":\"@timestamp\"},{\"field\":\"severityText\"},{\"field\":\"@version\"},{\"field\":\"droppedAttributesCount\"},{\"field\":\"time\"},{\"field\":\"observedTimestamp\"}]}}}}}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "text_multifield",
+      "field": "log.method",
+      "mapped_type": "text (+.keyword)",
+      "op": "top",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | top 10 log.method",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [
+        "Calc",
+        "Limit",
+        "Window"
+      ],
+      "unbounded_scan": true,
+      "physical": "EnumerableLimit(fetch=[10000])\n  EnumerableCalc(expr#0..2=[{inputs}], expr#3=[10], expr#4=[<=($t2, $t3)], proj#0..1=[{exprs}], $condition=[$t4])\n    EnumerableWindow(window#0=[window(order by [1 DESC, 0] rows between UNBOUNDED PRECEDING and CURRENT ROW aggs [ROW_NUMBER()])])\n      CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#546314:LogicalAggregate.NONE.[](input=RelSubset#546282,group={0},count=COUNT())], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"log.method\":{\"terms\":{\"field\":\"log.method.keyword\",\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "text_multifield",
+      "field": "log.method",
+      "mapped_type": "text (+.keyword)",
+      "op": "rare",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | rare log.method",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [
+        "Calc",
+        "Limit",
+        "Window"
+      ],
+      "unbounded_scan": true,
+      "physical": "EnumerableLimit(fetch=[10000])\n  EnumerableCalc(expr#0..2=[{inputs}], expr#3=[10], expr#4=[<=($t2, $t3)], proj#0..1=[{exprs}], $condition=[$t4])\n    EnumerableWindow(window#0=[window(order by [1, 0] rows between UNBOUNDED PRECEDING and CURRENT ROW aggs [ROW_NUMBER()])])\n      CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#552055:LogicalAggregate.NONE.[](input=RelSubset#552023,group={0},count=COUNT())], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"log.method\":{\"terms\":{\"field\":\"log.method.keyword\",\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "text_multifield",
+      "field": "log.method",
+      "mapped_type": "text (+.keyword)",
+      "op": "like",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where like(log.method, '%x%') | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, log.method, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->AND(>=($11, '2026-04-10 23:00:00'), ILIKE($3, '%x%', '\\')), LIMIT->100, PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"wildcard\":{\"log.method.keyword\":{\"wildcard\":\"*x*\",\"case_insensitive\":true,\"boost\":1.0}}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "text_multifield",
+      "field": "log.method",
+      "mapped_type": "text (+.keyword)",
+      "op": "isnull",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where isnull(log.method) | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, log.method, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->AND(>=($11, '2026-04-10 23:00:00'), IS NULL($3)), LIMIT->100, PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"bool\":{\"must_not\":[{\"exists\":{\"field\":\"log.method\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "text_subfield",
+      "field": "log.method.keyword",
+      "mapped_type": "keyword (subfield)",
+      "op": "groupby",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats count() by log.method.keyword",
+      "verdict": "ERROR",
+      "error": "AssertionError: Invalid Query"
+    },
+    {
+      "type_label": "text_subfield",
+      "field": "log.method.keyword",
+      "mapped_type": "keyword (subfield)",
+      "op": "dc",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats dc(log.method.keyword)",
+      "verdict": "ERROR",
+      "error": "AssertionError: Invalid Query"
+    },
+    {
+      "type_label": "text_subfield",
+      "field": "log.method.keyword",
+      "mapped_type": "keyword (subfield)",
+      "op": "count_field",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats count(log.method.keyword)",
+      "verdict": "ERROR",
+      "error": "AssertionError: Invalid Query"
+    },
+    {
+      "type_label": "text_subfield",
+      "field": "log.method.keyword",
+      "mapped_type": "keyword (subfield)",
+      "op": "min_max",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats min(log.method.keyword) as mn, max(log.method.keyword) as mx",
+      "verdict": "ERROR",
+      "error": "AssertionError: Invalid Query"
+    },
+    {
+      "type_label": "text_subfield",
+      "field": "log.method.keyword",
+      "mapped_type": "keyword (subfield)",
+      "op": "filter_eq",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where log.method.keyword = 'x' | head 100",
+      "verdict": "ERROR",
+      "error": "AssertionError: Invalid Query"
+    },
+    {
+      "type_label": "text_subfield",
+      "field": "log.method.keyword",
+      "mapped_type": "keyword (subfield)",
+      "op": "sort",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | sort log.method.keyword | head 100",
+      "verdict": "ERROR",
+      "error": "AssertionError: Invalid Query"
+    },
+    {
+      "type_label": "text_subfield",
+      "field": "log.method.keyword",
+      "mapped_type": "keyword (subfield)",
+      "op": "dedup",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | dedup log.method.keyword | head 100",
+      "verdict": "ERROR",
+      "error": "AssertionError: Invalid Query"
+    },
+    {
+      "type_label": "text_subfield",
+      "field": "log.method.keyword",
+      "mapped_type": "keyword (subfield)",
+      "op": "top",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | top 10 log.method.keyword",
+      "verdict": "ERROR",
+      "error": "AssertionError: Invalid Query"
+    },
+    {
+      "type_label": "text_subfield",
+      "field": "log.method.keyword",
+      "mapped_type": "keyword (subfield)",
+      "op": "rare",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | rare log.method.keyword",
+      "verdict": "ERROR",
+      "error": "AssertionError: Invalid Query"
+    },
+    {
+      "type_label": "text_subfield",
+      "field": "log.method.keyword",
+      "mapped_type": "keyword (subfield)",
+      "op": "like",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where like(log.method.keyword, '%x%') | head 100",
+      "verdict": "ERROR",
+      "error": "AssertionError: Invalid Query"
+    },
+    {
+      "type_label": "text_subfield",
+      "field": "log.method.keyword",
+      "mapped_type": "keyword (subfield)",
+      "op": "isnull",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where isnull(log.method.keyword) | head 100",
+      "verdict": "ERROR",
+      "error": "AssertionError: Invalid Query"
+    },
+    {
+      "type_label": "long",
+      "field": "attributes.obs_body_length",
+      "mapped_type": "long",
+      "op": "groupby",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats count() by attributes.obs_body_length",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($0, '2026-04-10 23:00:00'), AGGREGATION->rel#554092:LogicalAggregate.NONE.[](input=RelSubset#554066,group={1},count()=COUNT()), PROJECT->[count(), attributes.obs_body_length], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"attributes.obs_body_length\":{\"terms\":{\"field\":\"attributes.obs_body_length\",\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=10000, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "long",
+      "field": "attributes.obs_body_length",
+      "mapped_type": "long",
+      "op": "dc",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats dc(attributes.obs_body_length)",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->AND(>=($0, '2026-04-10 23:00:00'), IS NOT NULL($1)), AGGREGATION->rel#550734:LogicalAggregate.NONE.[](input=RelSubset#550711,group={},dc(attributes.obs_body_length)=COUNT(DISTINCT $1)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"exists\":{\"field\":\"attributes.obs_body_length\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"aggregations\":{\"dc(attributes.obs_body_length)\":{\"cardinality\":{\"field\":\"attributes.obs_body_length\"}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "long",
+      "field": "attributes.obs_body_length",
+      "mapped_type": "long",
+      "op": "count_field",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats count(attributes.obs_body_length)",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->AND(>=($0, '2026-04-10 23:00:00'), IS NOT NULL($1)), AGGREGATION->rel#552731:LogicalAggregate.NONE.[](input=RelSubset#552708,group={},count(attributes.obs_body_length)=COUNT($1)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"exists\":{\"field\":\"attributes.obs_body_length\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"track_total_hits\":2147483647}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "long",
+      "field": "attributes.obs_body_length",
+      "mapped_type": "long",
+      "op": "min_max",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats min(attributes.obs_body_length) as mn, max(attributes.obs_body_length) as mx",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($0, '2026-04-10 23:00:00'), AGGREGATION->rel#550829:LogicalAggregate.NONE.[](input=RelSubset#550806,group={},mn=MIN($1),mx=MAX($1)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"mn\":{\"min\":{\"field\":\"attributes.obs_body_length\"}},\"mx\":{\"max\":{\"field\":\"attributes.obs_body_length\"}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "long",
+      "field": "attributes.obs_body_length",
+      "mapped_type": "long",
+      "op": "avg_sum",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats avg(attributes.obs_body_length) as a, sum(attributes.obs_body_length) as s",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($0, '2026-04-10 23:00:00'), AGGREGATION->rel#544752:LogicalAggregate.NONE.[](input=RelSubset#544729,group={},a=AVG($1),s=SUM($1)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"a\":{\"avg\":{\"field\":\"attributes.obs_body_length\"}},\"s\":{\"sum\":{\"field\":\"attributes.obs_body_length\"}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "long",
+      "field": "attributes.obs_body_length",
+      "mapped_type": "long",
+      "op": "filter_eq",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where attributes.obs_body_length = 1 | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, attributes.obs_body_length, droppedAttributesCount, time, observedTimestamp], FILTER->AND(>=($10, '2026-04-10 23:00:00'), =($14, 1)), LIMIT->100, PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"term\":{\"attributes.obs_body_length\":{\"value\":1,\"boost\":1.0}}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "long",
+      "field": "attributes.obs_body_length",
+      "mapped_type": "long",
+      "op": "filter_range",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where attributes.obs_body_length > 1 | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, attributes.obs_body_length, droppedAttributesCount, time, observedTimestamp], FILTER->AND(>=($10, '2026-04-10 23:00:00'), >($14, 1)), LIMIT->100, PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"range\":{\"attributes.obs_body_length\":{\"from\":1,\"to\":null,\"include_lower\":false,\"include_upper\":true,\"boost\":1.0}}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "long",
+      "field": "attributes.obs_body_length",
+      "mapped_type": "long",
+      "op": "sort",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | sort attributes.obs_body_length | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": true,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, attributes.obs_body_length, droppedAttributesCount, time, observedTimestamp], FILTER->>=($10, '2026-04-10 23:00:00'), SORT->[{\n  \"attributes.obs_body_length\" : {\n    \"order\" : \"asc\",\n    \"missing\" : \"_first\"\n  }\n}], LIMIT->100, PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]},\"sort\":[{\"attributes.obs_body_length\":{\"order\":\"asc\",\"missing\":\"_first\"}}]}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "long",
+      "field": "attributes.obs_body_length",
+      "mapped_type": "long",
+      "op": "dedup",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | dedup attributes.obs_body_length | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($10, '2026-04-10 23:00:00'), AGGREGATION->rel#544935:LogicalAggregate.NONE.[](input=LogicalProject#544933,group={0},agg#0=LITERAL_AGG(1)), LIMIT->100, PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":100,\"sources\":[{\"attributes.obs_body_length\":{\"terms\":{\"field\":\"attributes.obs_body_length\",\"missing_bucket\":false,\"order\":\"asc\"}}}]},\"aggregations\":{\"$f1\":{\"top_hits\":{\"from\":0,\"size\":1,\"version\":false,\"seq_no_primary_term\":false,\"explain\":false,\"fields\":[{\"field\":\"attributes.obs_body_length\"},{\"field\":\"traceId\"},{\"field\":\"flags\"},{\"field\":\"severityNumber\"},{\"field\":\"body\"},{\"field\":\"serviceName\"},{\"field\":\"schemaUrl\"},{\"field\":\"spanId\"},{\"field\":\"@timestamp\"},{\"field\":\"severityText\"},{\"field\":\"@version\"},{\"field\":\"droppedAttributesCount\"},{\"field\":\"time\"},{\"field\":\"observedTimestamp\"}]}}}}}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "long",
+      "field": "attributes.obs_body_length",
+      "mapped_type": "long",
+      "op": "top",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | top 10 attributes.obs_body_length",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [
+        "Calc",
+        "Limit",
+        "Window"
+      ],
+      "unbounded_scan": true,
+      "physical": "EnumerableLimit(fetch=[10000])\n  EnumerableCalc(expr#0..2=[{inputs}], expr#3=[10], expr#4=[<=($t2, $t3)], proj#0..1=[{exprs}], $condition=[$t4])\n    EnumerableWindow(window#0=[window(order by [1 DESC, 0] rows between UNBOUNDED PRECEDING and CURRENT ROW aggs [ROW_NUMBER()])])\n      CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($0, '2026-04-10 23:00:00'), AGGREGATION->rel#549489:LogicalAggregate.NONE.[](input=RelSubset#549457,group={1},count=COUNT())], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"attributes.obs_body_length\":{\"terms\":{\"field\":\"attributes.obs_body_length\",\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "long",
+      "field": "attributes.obs_body_length",
+      "mapped_type": "long",
+      "op": "rare",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | rare attributes.obs_body_length",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [
+        "Calc",
+        "Limit",
+        "Window"
+      ],
+      "unbounded_scan": true,
+      "physical": "EnumerableLimit(fetch=[10000])\n  EnumerableCalc(expr#0..2=[{inputs}], expr#3=[10], expr#4=[<=($t2, $t3)], proj#0..1=[{exprs}], $condition=[$t4])\n    EnumerableWindow(window#0=[window(order by [1, 0] rows between UNBOUNDED PRECEDING and CURRENT ROW aggs [ROW_NUMBER()])])\n      CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($0, '2026-04-10 23:00:00'), AGGREGATION->rel#552842:LogicalAggregate.NONE.[](input=RelSubset#552810,group={1},count=COUNT())], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"attributes.obs_body_length\":{\"terms\":{\"field\":\"attributes.obs_body_length\",\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "long",
+      "field": "attributes.obs_body_length",
+      "mapped_type": "long",
+      "op": "isnull",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where isnull(attributes.obs_body_length) | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, attributes.obs_body_length, droppedAttributesCount, time, observedTimestamp], FILTER->AND(>=($10, '2026-04-10 23:00:00'), IS NULL($14)), LIMIT->100, PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"bool\":{\"must_not\":[{\"exists\":{\"field\":\"attributes.obs_body_length\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "long",
+      "field": "attributes.obs_body_length",
+      "mapped_type": "long",
+      "op": "bin",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | bin attributes.obs_body_length span=5 | stats count() by attributes.obs_body_length",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($0, '2026-04-10 23:00:00'), AGGREGATION->rel#552948:LogicalAggregate.NONE.[](input=RelSubset#552947,group={0},count()=COUNT()), PROJECT->[count(), attributes.obs_body_length], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"attributes.obs_body_length\":{\"terms\":{\"script\":{\"source\":\"{\\\"langType\\\":\\\"calcite\\\",\\\"script\\\":\\\"rO0ABXQCLXsKICAib3AiOiB7CiAgICAibmFtZSI6ICJTUEFOX0JVQ0tFVCIsCiAgICAia2luZCI6ICJPVEhFUl9GVU5DVElPTiIsCiAgICAic3ludGF4IjogIkZVTkNUSU9OIgogIH0sCiAgIm9wZXJhbmRzIjogWwogICAgewogICAgICAiZHluYW1pY1BhcmFtIjogMCwKICAgICAgInR5cGUiOiB7CiAgICAgICAgInR5cGUiOiAiQklHSU5UIiwKICAgICAgICAibnVsbGFibGUiOiB0cnVlCiAgICAgIH0KICAgIH0sCiAgICB7CiAgICAgICJkeW5hbWljUGFyYW0iOiAxLAogICAgICAidHlwZSI6IHsKICAgICAgICAidHlwZSI6ICJJTlRFR0VSIiwKICAgICAgICAibnVsbGFibGUiOiB0cnVlCiAgICAgIH0KICAgIH0KICBdLAogICJjbGFzcyI6ICJvcmcub3BlbnNlYXJjaC5zcWwuZXhwcmVzc2lvbi5mdW5jdGlvbi5Vc2VyRGVmaW5lZEZ1bmN0aW9uQnVpbGRlciQxIiwKICAidHlwZSI6IHsKICAgICJ0eXBlIjogIlZBUkNIQVIiLAogICAgIm51bGxhYmxlIjogdHJ1ZSwKICAgICJwcmVjaXNpb24iOiAyMDAwCiAgfSwKICAiZGV0ZXJtaW5pc3RpYyI6IHRydWUsCiAgImR5bmFtaWMiOiBmYWxzZQp9\\\"}\",\"lang\":\"opensearch_compounded_script\",\"params\":{\"utcTimestamp\":1790181481615168914,\"SOURCES\":[0,2],\"DIGESTS\":[\"attributes.obs_body_length\",5]}},\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=10000, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "integer",
+      "field": "severityNumber",
+      "mapped_type": "integer",
+      "op": "groupby",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats count() by severityNumber",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#549614:LogicalAggregate.NONE.[](input=RelSubset#549588,group={0},count()=COUNT()), PROJECT->[count(), severityNumber], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"severityNumber\":{\"terms\":{\"field\":\"severityNumber\",\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=10000, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "integer",
+      "field": "severityNumber",
+      "mapped_type": "integer",
+      "op": "dc",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats dc(severityNumber)",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->AND(>=($1, '2026-04-10 23:00:00'), IS NOT NULL($0)), AGGREGATION->rel#554193:LogicalAggregate.NONE.[](input=RelSubset#554170,group={},dc(severityNumber)=COUNT(DISTINCT $0)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"exists\":{\"field\":\"severityNumber\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"aggregations\":{\"dc(severityNumber)\":{\"cardinality\":{\"field\":\"severityNumber\"}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "integer",
+      "field": "severityNumber",
+      "mapped_type": "integer",
+      "op": "count_field",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats count(severityNumber)",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->AND(>=($1, '2026-04-10 23:00:00'), IS NOT NULL($0)), AGGREGATION->rel#547234:LogicalAggregate.NONE.[](input=RelSubset#547211,group={},count(severityNumber)=COUNT($0)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"exists\":{\"field\":\"severityNumber\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"track_total_hits\":2147483647}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "integer",
+      "field": "severityNumber",
+      "mapped_type": "integer",
+      "op": "min_max",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats min(severityNumber) as mn, max(severityNumber) as mx",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#552924:LogicalAggregate.NONE.[](input=RelSubset#552901,group={},mn=MIN($0),mx=MAX($0)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"mn\":{\"min\":{\"field\":\"severityNumber\"}},\"mx\":{\"max\":{\"field\":\"severityNumber\"}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "integer",
+      "field": "severityNumber",
+      "mapped_type": "integer",
+      "op": "avg_sum",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats avg(severityNumber) as a, sum(severityNumber) as s",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#556802:LogicalAggregate.NONE.[](input=RelSubset#556779,group={},a=AVG($0),s=SUM($0)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"a\":{\"avg\":{\"field\":\"severityNumber\"}},\"s\":{\"sum\":{\"field\":\"severityNumber\"}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "integer",
+      "field": "severityNumber",
+      "mapped_type": "integer",
+      "op": "filter_eq",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where severityNumber = 1 | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->AND(>=($10, '2026-04-10 23:00:00'), =($5, 1)), LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"term\":{\"severityNumber\":{\"value\":1,\"boost\":1.0}}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "integer",
+      "field": "severityNumber",
+      "mapped_type": "integer",
+      "op": "filter_range",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where severityNumber > 1 | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->AND(>=($10, '2026-04-10 23:00:00'), >($5, 1)), LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"range\":{\"severityNumber\":{\"from\":1,\"to\":null,\"include_lower\":false,\"include_upper\":true,\"boost\":1.0}}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "integer",
+      "field": "severityNumber",
+      "mapped_type": "integer",
+      "op": "sort",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | sort severityNumber | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": true,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->>=($10, '2026-04-10 23:00:00'), SORT->[{\n  \"severityNumber\" : {\n    \"order\" : \"asc\",\n    \"missing\" : \"_first\"\n  }\n}], LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]},\"sort\":[{\"severityNumber\":{\"order\":\"asc\",\"missing\":\"_first\"}}]}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "integer",
+      "field": "severityNumber",
+      "mapped_type": "integer",
+      "op": "dedup",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | dedup severityNumber | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($10, '2026-04-10 23:00:00'), AGGREGATION->rel#546542:LogicalAggregate.NONE.[](input=LogicalProject#546540,group={0},agg#0=LITERAL_AGG(1)), LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":100,\"sources\":[{\"severityNumber\":{\"terms\":{\"field\":\"severityNumber\",\"missing_bucket\":false,\"order\":\"asc\"}}}]},\"aggregations\":{\"$f1\":{\"top_hits\":{\"from\":0,\"size\":1,\"version\":false,\"seq_no_primary_term\":false,\"explain\":false,\"fields\":[{\"field\":\"severityNumber\"},{\"field\":\"traceId\"},{\"field\":\"flags\"},{\"field\":\"body\"},{\"field\":\"serviceName\"},{\"field\":\"schemaUrl\"},{\"field\":\"spanId\"},{\"field\":\"@timestamp\"},{\"field\":\"severityText\"},{\"field\":\"@version\"},{\"field\":\"droppedAttributesCount\"},{\"field\":\"time\"},{\"field\":\"observedTimestamp\"}]}}}}}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "integer",
+      "field": "severityNumber",
+      "mapped_type": "integer",
+      "op": "top",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | top 10 severityNumber",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [
+        "Calc",
+        "Limit",
+        "Window"
+      ],
+      "unbounded_scan": true,
+      "physical": "EnumerableLimit(fetch=[10000])\n  EnumerableCalc(expr#0..2=[{inputs}], expr#3=[10], expr#4=[<=($t2, $t3)], proj#0..1=[{exprs}], $condition=[$t4])\n    EnumerableWindow(window#0=[window(order by [1 DESC, 0] rows between UNBOUNDED PRECEDING and CURRENT ROW aggs [ROW_NUMBER()])])\n      CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#552204:LogicalAggregate.NONE.[](input=RelSubset#552172,group={0},count=COUNT())], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"severityNumber\":{\"terms\":{\"field\":\"severityNumber\",\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "integer",
+      "field": "severityNumber",
+      "mapped_type": "integer",
+      "op": "rare",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | rare severityNumber",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [
+        "Calc",
+        "Limit",
+        "Window"
+      ],
+      "unbounded_scan": true,
+      "physical": "EnumerableLimit(fetch=[10000])\n  EnumerableCalc(expr#0..2=[{inputs}], expr#3=[10], expr#4=[<=($t2, $t3)], proj#0..1=[{exprs}], $condition=[$t4])\n    EnumerableWindow(window#0=[window(order by [1, 0] rows between UNBOUNDED PRECEDING and CURRENT ROW aggs [ROW_NUMBER()])])\n      CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#549740:LogicalAggregate.NONE.[](input=RelSubset#549708,group={0},count=COUNT())], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"severityNumber\":{\"terms\":{\"field\":\"severityNumber\",\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "integer",
+      "field": "severityNumber",
+      "mapped_type": "integer",
+      "op": "isnull",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where isnull(severityNumber) | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->AND(>=($10, '2026-04-10 23:00:00'), IS NULL($5)), LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"bool\":{\"must_not\":[{\"exists\":{\"field\":\"severityNumber\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "integer",
+      "field": "severityNumber",
+      "mapped_type": "integer",
+      "op": "bin",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | bin severityNumber span=5 | stats count() by severityNumber",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#556951:LogicalAggregate.NONE.[](input=RelSubset#556950,group={0},count()=COUNT()), PROJECT->[count(), severityNumber], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"severityNumber\":{\"terms\":{\"script\":{\"source\":\"{\\\"langType\\\":\\\"calcite\\\",\\\"script\\\":\\\"rO0ABXQCLnsKICAib3AiOiB7CiAgICAibmFtZSI6ICJTUEFOX0JVQ0tFVCIsCiAgICAia2luZCI6ICJPVEhFUl9GVU5DVElPTiIsCiAgICAic3ludGF4IjogIkZVTkNUSU9OIgogIH0sCiAgIm9wZXJhbmRzIjogWwogICAgewogICAgICAiZHluYW1pY1BhcmFtIjogMCwKICAgICAgInR5cGUiOiB7CiAgICAgICAgInR5cGUiOiAiSU5URUdFUiIsCiAgICAgICAgIm51bGxhYmxlIjogdHJ1ZQogICAgICB9CiAgICB9LAogICAgewogICAgICAiZHluYW1pY1BhcmFtIjogMSwKICAgICAgInR5cGUiOiB7CiAgICAgICAgInR5cGUiOiAiSU5URUdFUiIsCiAgICAgICAgIm51bGxhYmxlIjogdHJ1ZQogICAgICB9CiAgICB9CiAgXSwKICAiY2xhc3MiOiAib3JnLm9wZW5zZWFyY2guc3FsLmV4cHJlc3Npb24uZnVuY3Rpb24uVXNlckRlZmluZWRGdW5jdGlvbkJ1aWxkZXIkMSIsCiAgInR5cGUiOiB7CiAgICAidHlwZSI6ICJWQVJDSEFSIiwKICAgICJudWxsYWJsZSI6IHRydWUsCiAgICAicHJlY2lzaW9uIjogMjAwMAogIH0sCiAgImRldGVybWluaXN0aWMiOiB0cnVlLAogICJkeW5hbWljIjogZmFsc2UKfQ==\\\"}\",\"lang\":\"opensearch_compounded_script\",\"params\":{\"utcTimestamp\":1790181482831541136,\"SOURCES\":[0,2],\"DIGESTS\":[\"severityNumber\",5]}},\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=10000, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "byte",
+      "field": "flags",
+      "mapped_type": "byte",
+      "op": "groupby",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats count() by flags",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#550920:LogicalAggregate.NONE.[](input=RelSubset#550894,group={0},count()=COUNT()), PROJECT->[count(), flags], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"flags\":{\"terms\":{\"field\":\"flags\",\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=10000, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "byte",
+      "field": "flags",
+      "mapped_type": "byte",
+      "op": "dc",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats dc(flags)",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->AND(>=($1, '2026-04-10 23:00:00'), IS NOT NULL($0)), AGGREGATION->rel#545032:LogicalAggregate.NONE.[](input=RelSubset#545009,group={},dc(flags)=COUNT(DISTINCT $0)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"exists\":{\"field\":\"flags\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"aggregations\":{\"dc(flags)\":{\"cardinality\":{\"field\":\"flags\"}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "byte",
+      "field": "flags",
+      "mapped_type": "byte",
+      "op": "count_field",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats count(flags)",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->AND(>=($1, '2026-04-10 23:00:00'), IS NOT NULL($0)), AGGREGATION->rel#546624:LogicalAggregate.NONE.[](input=RelSubset#546601,group={},count(flags)=COUNT($0)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"exists\":{\"field\":\"flags\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"track_total_hits\":2147483647}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "byte",
+      "field": "flags",
+      "mapped_type": "byte",
+      "op": "min_max",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats min(flags) as mn, max(flags) as mx",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#547443:LogicalAggregate.NONE.[](input=RelSubset#547420,group={},mn=MIN($0),mx=MAX($0)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"mn\":{\"min\":{\"field\":\"flags\"}},\"mx\":{\"max\":{\"field\":\"flags\"}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "byte",
+      "field": "flags",
+      "mapped_type": "byte",
+      "op": "avg_sum",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats avg(flags) as a, sum(flags) as s",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#547525:LogicalAggregate.NONE.[](input=RelSubset#547502,group={},a=AVG($0),s=SUM($0)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"a\":{\"avg\":{\"field\":\"flags\"}},\"s\":{\"sum\":{\"field\":\"flags\"}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "byte",
+      "field": "flags",
+      "mapped_type": "byte",
+      "op": "filter_eq",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where flags = 1 | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->AND(>=($10, '2026-04-10 23:00:00'), =($4, 1)), LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"term\":{\"flags\":{\"value\":1,\"boost\":1.0}}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "byte",
+      "field": "flags",
+      "mapped_type": "byte",
+      "op": "filter_range",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where flags > 1 | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->AND(>=($10, '2026-04-10 23:00:00'), >($4, 1)), LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"range\":{\"flags\":{\"from\":1,\"to\":null,\"include_lower\":false,\"include_upper\":true,\"boost\":1.0}}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "byte",
+      "field": "flags",
+      "mapped_type": "byte",
+      "op": "sort",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | sort flags | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": true,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->>=($10, '2026-04-10 23:00:00'), SORT->[{\n  \"flags\" : {\n    \"order\" : \"asc\",\n    \"missing\" : \"_first\"\n  }\n}], LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]},\"sort\":[{\"flags\":{\"order\":\"asc\",\"missing\":\"_first\"}}]}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "byte",
+      "field": "flags",
+      "mapped_type": "byte",
+      "op": "dedup",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | dedup flags | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($10, '2026-04-10 23:00:00'), AGGREGATION->rel#547426:LogicalAggregate.NONE.[](input=LogicalProject#547424,group={0},agg#0=LITERAL_AGG(1)), LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":100,\"sources\":[{\"flags\":{\"terms\":{\"field\":\"flags\",\"missing_bucket\":false,\"order\":\"asc\"}}}]},\"aggregations\":{\"$f1\":{\"top_hits\":{\"from\":0,\"size\":1,\"version\":false,\"seq_no_primary_term\":false,\"explain\":false,\"fields\":[{\"field\":\"flags\"},{\"field\":\"traceId\"},{\"field\":\"severityNumber\"},{\"field\":\"body\"},{\"field\":\"serviceName\"},{\"field\":\"schemaUrl\"},{\"field\":\"spanId\"},{\"field\":\"@timestamp\"},{\"field\":\"severityText\"},{\"field\":\"@version\"},{\"field\":\"droppedAttributesCount\"},{\"field\":\"time\"},{\"field\":\"observedTimestamp\"}]}}}}}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "byte",
+      "field": "flags",
+      "mapped_type": "byte",
+      "op": "top",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | top 10 flags",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [
+        "Calc",
+        "Limit",
+        "Window"
+      ],
+      "unbounded_scan": true,
+      "physical": "EnumerableLimit(fetch=[10000])\n  EnumerableCalc(expr#0..2=[{inputs}], expr#3=[10], expr#4=[<=($t2, $t3)], proj#0..1=[{exprs}], $condition=[$t4])\n    EnumerableWindow(window#0=[window(order by [1 DESC, 0] rows between UNBOUNDED PRECEDING and CURRENT ROW aggs [ROW_NUMBER()])])\n      CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#553098:LogicalAggregate.NONE.[](input=RelSubset#553066,group={0},count=COUNT())], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"flags\":{\"terms\":{\"field\":\"flags\",\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "byte",
+      "field": "flags",
+      "mapped_type": "byte",
+      "op": "rare",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | rare flags",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [
+        "Calc",
+        "Limit",
+        "Window"
+      ],
+      "unbounded_scan": true,
+      "physical": "EnumerableLimit(fetch=[10000])\n  EnumerableCalc(expr#0..2=[{inputs}], expr#3=[10], expr#4=[<=($t2, $t3)], proj#0..1=[{exprs}], $condition=[$t4])\n    EnumerableWindow(window#0=[window(order by [1, 0] rows between UNBOUNDED PRECEDING and CURRENT ROW aggs [ROW_NUMBER()])])\n      CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#554389:LogicalAggregate.NONE.[](input=RelSubset#554357,group={0},count=COUNT())], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"flags\":{\"terms\":{\"field\":\"flags\",\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "byte",
+      "field": "flags",
+      "mapped_type": "byte",
+      "op": "isnull",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where isnull(flags) | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->AND(>=($10, '2026-04-10 23:00:00'), IS NULL($4)), LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"bool\":{\"must\":[{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},{\"bool\":{\"must_not\":[{\"exists\":{\"field\":\"flags\",\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}}],\"adjust_pure_negative\":true,\"boost\":1.0}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "byte",
+      "field": "flags",
+      "mapped_type": "byte",
+      "op": "bin",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | bin flags span=5 | stats count() by flags",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#553067:LogicalAggregate.NONE.[](input=RelSubset#553066,group={0},count()=COUNT()), PROJECT->[count(), flags], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"flags\":{\"terms\":{\"script\":{\"source\":\"{\\\"langType\\\":\\\"calcite\\\",\\\"script\\\":\\\"rO0ABXQCLnsKICAib3AiOiB7CiAgICAibmFtZSI6ICJTUEFOX0JVQ0tFVCIsCiAgICAia2luZCI6ICJPVEhFUl9GVU5DVElPTiIsCiAgICAic3ludGF4IjogIkZVTkNUSU9OIgogIH0sCiAgIm9wZXJhbmRzIjogWwogICAgewogICAgICAiZHluYW1pY1BhcmFtIjogMCwKICAgICAgInR5cGUiOiB7CiAgICAgICAgInR5cGUiOiAiVElOWUlOVCIsCiAgICAgICAgIm51bGxhYmxlIjogdHJ1ZQogICAgICB9CiAgICB9LAogICAgewogICAgICAiZHluYW1pY1BhcmFtIjogMSwKICAgICAgInR5cGUiOiB7CiAgICAgICAgInR5cGUiOiAiSU5URUdFUiIsCiAgICAgICAgIm51bGxhYmxlIjogdHJ1ZQogICAgICB9CiAgICB9CiAgXSwKICAiY2xhc3MiOiAib3JnLm9wZW5zZWFyY2guc3FsLmV4cHJlc3Npb24uZnVuY3Rpb24uVXNlckRlZmluZWRGdW5jdGlvbkJ1aWxkZXIkMSIsCiAgInR5cGUiOiB7CiAgICAidHlwZSI6ICJWQVJDSEFSIiwKICAgICJudWxsYWJsZSI6IHRydWUsCiAgICAicHJlY2lzaW9uIjogMjAwMAogIH0sCiAgImRldGVybWluaXN0aWMiOiB0cnVlLAogICJkeW5hbWljIjogZmFsc2UKfQ==\\\"}\",\"lang\":\"opensearch_compounded_script\",\"params\":{\"utcTimestamp\":1790181483957921733,\"SOURCES\":[0,2],\"DIGESTS\":[\"flags\",5]}},\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=10000, pageSize=null, startFrom=0)])\n",
+      "literal": "1",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "date",
+      "field": "@timestamp",
+      "mapped_type": "date",
+      "op": "groupby",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats count() by @timestamp",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($0, '2026-04-10 23:00:00'), AGGREGATION->rel#551069:LogicalAggregate.NONE.[](input=RelSubset#551068,group={0},count()=COUNT()), PROJECT->[count(), @timestamp], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"@timestamp\":{\"terms\":{\"field\":\"@timestamp\",\"missing_bucket\":true,\"value_type\":\"long\",\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=10000, pageSize=null, startFrom=0)])\n",
+      "literal": "'2026-04-10 23:00:00'",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "date",
+      "field": "@timestamp",
+      "mapped_type": "date",
+      "op": "dc",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats dc(@timestamp)",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($0, '2026-04-10 23:00:00'), AGGREGATION->rel#545104:LogicalAggregate.NONE.[](input=RelSubset#545103,group={},dc(@timestamp)=COUNT(DISTINCT $0)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"dc(@timestamp)\":{\"cardinality\":{\"field\":\"@timestamp\"}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'2026-04-10 23:00:00'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "date",
+      "field": "@timestamp",
+      "mapped_type": "date",
+      "op": "count_field",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats count(@timestamp)",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($0, '2026-04-10 23:00:00'), AGGREGATION->rel#545183:LogicalAggregate.NONE.[](input=RelSubset#545182,group={},count(@timestamp)=COUNT($0)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"track_total_hits\":2147483647}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'2026-04-10 23:00:00'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "date",
+      "field": "@timestamp",
+      "mapped_type": "date",
+      "op": "min_max",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats min(@timestamp) as mn, max(@timestamp) as mx",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": true,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($0, '2026-04-10 23:00:00'), AGGREGATION->rel#557046:LogicalAggregate.NONE.[](input=RelSubset#557045,group={},mn=MIN($0),mx=MAX($0)), LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"mn\":{\"min\":{\"field\":\"@timestamp\"}},\"mx\":{\"max\":{\"field\":\"@timestamp\"}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'2026-04-10 23:00:00'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "date",
+      "field": "@timestamp",
+      "mapped_type": "date",
+      "op": "filter_eq",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where @timestamp = '2026-04-10 23:00:00' | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->=($10, '2026-04-10 23:00:00':VARCHAR), LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":\"2026-04-10T23:00:00.000Z\",\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'2026-04-10 23:00:00'",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "date",
+      "field": "@timestamp",
+      "mapped_type": "date",
+      "op": "filter_range",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where @timestamp > '2026-04-10 23:00:00' | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->>($10, '2026-04-10 23:00:00':VARCHAR), LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":false,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'2026-04-10 23:00:00'",
+      "predicate_pushed": true,
+      "size_max": false
+    },
+    {
+      "type_label": "date",
+      "field": "@timestamp",
+      "mapped_type": "date",
+      "op": "sort",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | sort @timestamp | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": false,
+        "filter": true,
+        "sort": true,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[PROJECT->[traceId, instrumentationScope, log, resource, flags, severityNumber, body, serviceName, schemaUrl, spanId, @timestamp, severityText, @version, attributes, droppedAttributesCount, time, observedTimestamp], FILTER->>=($10, '2026-04-10 23:00:00'), SORT->[{\n  \"@timestamp\" : {\n    \"order\" : \"asc\",\n    \"missing\" : \"_first\"\n  }\n}], LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":100,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"_source\":{\"includes\":[\"traceId\",\"instrumentationScope\",\"log\",\"resource\",\"flags\",\"severityNumber\",\"body\",\"serviceName\",\"schemaUrl\",\"spanId\",\"@timestamp\",\"severityText\",\"@version\",\"attributes\",\"droppedAttributesCount\",\"time\",\"observedTimestamp\"],\"excludes\":[]},\"sort\":[{\"@timestamp\":{\"order\":\"asc\",\"missing\":\"_first\"}}]}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'2026-04-10 23:00:00'",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "date",
+      "field": "@timestamp",
+      "mapped_type": "date",
+      "op": "dedup",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | dedup @timestamp | head 100",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($10, '2026-04-10 23:00:00'), AGGREGATION->rel#553230:LogicalAggregate.NONE.[](input=LogicalProject#553228,group={0},agg#0=LITERAL_AGG(1)), LIMIT->100, LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":100,\"sources\":[{\"@timestamp\":{\"terms\":{\"field\":\"@timestamp\",\"missing_bucket\":false,\"value_type\":\"long\",\"order\":\"asc\"}}}]},\"aggregations\":{\"$f1\":{\"top_hits\":{\"from\":0,\"size\":1,\"version\":false,\"seq_no_primary_term\":false,\"explain\":false,\"fields\":[{\"field\":\"@timestamp\"},{\"field\":\"traceId\"},{\"field\":\"flags\"},{\"field\":\"severityNumber\"},{\"field\":\"body\"},{\"field\":\"serviceName\"},{\"field\":\"schemaUrl\"},{\"field\":\"spanId\"},{\"field\":\"severityText\"},{\"field\":\"@version\"},{\"field\":\"droppedAttributesCount\"},{\"field\":\"time\"},{\"field\":\"observedTimestamp\"}]}}}}}}, requestedTotalSize=100, pageSize=null, startFrom=0)])\n",
+      "literal": "'2026-04-10 23:00:00'",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "date",
+      "field": "@timestamp",
+      "mapped_type": "date",
+      "op": "top",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | top 10 @timestamp",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [
+        "Calc",
+        "Limit",
+        "Window"
+      ],
+      "unbounded_scan": true,
+      "physical": "EnumerableLimit(fetch=[10000])\n  EnumerableCalc(expr#0..2=[{inputs}], expr#3=[10], expr#4=[<=($t2, $t3)], proj#0..1=[{exprs}], $condition=[$t4])\n    EnumerableWindow(window#0=[window(order by [1 DESC, 0] rows between UNBOUNDED PRECEDING and CURRENT ROW aggs [ROW_NUMBER()])])\n      CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($0, '2026-04-10 23:00:00'), AGGREGATION->rel#554499:LogicalAggregate.NONE.[](input=RelSubset#554498,group={0},count=COUNT())], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"@timestamp\":{\"terms\":{\"field\":\"@timestamp\",\"missing_bucket\":true,\"value_type\":\"long\",\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'2026-04-10 23:00:00'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "date",
+      "field": "@timestamp",
+      "mapped_type": "date",
+      "op": "rare",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | rare @timestamp",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [
+        "Calc",
+        "Limit",
+        "Window"
+      ],
+      "unbounded_scan": true,
+      "physical": "EnumerableLimit(fetch=[10000])\n  EnumerableCalc(expr#0..2=[{inputs}], expr#3=[10], expr#4=[<=($t2, $t3)], proj#0..1=[{exprs}], $condition=[$t4])\n    EnumerableWindow(window#0=[window(order by [1, 0] rows between UNBOUNDED PRECEDING and CURRENT ROW aggs [ROW_NUMBER()])])\n      CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($0, '2026-04-10 23:00:00'), AGGREGATION->rel#553302:LogicalAggregate.NONE.[](input=RelSubset#553301,group={0},count=COUNT())], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"@timestamp\":{\"terms\":{\"field\":\"@timestamp\",\"missing_bucket\":true,\"value_type\":\"long\",\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=2147483647, pageSize=null, startFrom=0)])\n",
+      "literal": "'2026-04-10 23:00:00'",
+      "predicate_pushed": null,
+      "size_max": true
+    },
+    {
+      "type_label": "date",
+      "field": "@timestamp",
+      "mapped_type": "date",
+      "op": "isnull",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | where isnull(@timestamp) | head 100",
+      "verdict": "FALLBACK",
+      "pushed": {
+        "agg": false,
+        "filter": false,
+        "sort": false,
+        "limit": false
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "EnumerableValues(tuples=[[]])\n",
+      "literal": "'2026-04-10 23:00:00'",
+      "predicate_pushed": false,
+      "size_max": false
+    },
+    {
+      "type_label": "date",
+      "field": "@timestamp",
+      "mapped_type": "date",
+      "op": "span_time",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats count() by span(@timestamp, 1h)",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($0, '2026-04-10 23:00:00'), AGGREGATION->rel#550007:LogicalAggregate.NONE.[](input=RelSubset#550006,group={0},count()=COUNT()), PROJECT->[count(), span(@timestamp,1h)], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"span(@timestamp,1h)\":{\"date_histogram\":{\"field\":\"@timestamp\",\"missing_bucket\":false,\"order\":\"asc\",\"fixed_interval\":\"1h\"}}}]}}}}, requestedTotalSize=10000, pageSize=null, startFrom=0)])\n",
+      "literal": "'2026-04-10 23:00:00'",
+      "predicate_pushed": null,
+      "size_max": false
+    },
+    {
+      "type_label": "object",
+      "field": "log.mdc",
+      "mapped_type": "object",
+      "op": "groupby",
+      "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-10 23:00:00' | stats count() by log.mdc",
+      "verdict": "PUSHED",
+      "pushed": {
+        "agg": true,
+        "filter": true,
+        "sort": false,
+        "limit": true
+      },
+      "fallback_ops": [],
+      "unbounded_scan": false,
+      "physical": "CalciteEnumerableIndexScan(table=[[OpenSearch, mock-mixed-pi]], PushDownContext=[[FILTER->>=($1, '2026-04-10 23:00:00'), AGGREGATION->rel#547513:LogicalAggregate.NONE.[](input=RelSubset#547487,group={0},count()=COUNT()), PROJECT->[count(), log.mdc], LIMIT->10000], OpenSearchRequestBuilder(sourceBuilder={\"from\":0,\"size\":0,\"timeout\":\"1m\",\"query\":{\"range\":{\"@timestamp\":{\"from\":\"2026-04-10T23:00:00.000Z\",\"to\":null,\"include_lower\":true,\"include_upper\":true,\"format\":\"date_time\",\"boost\":1.0}}},\"aggregations\":{\"composite_buckets\":{\"composite\":{\"size\":10000,\"sources\":[{\"log.mdc\":{\"terms\":{\"field\":\"log.mdc\",\"missing_bucket\":true,\"missing_order\":\"first\",\"order\":\"asc\"}}}]}}}}, requestedTotalSize=10000, pageSize=null, startFrom=0)])\n",
+      "literal": "'x'",
+      "predicate_pushed": null,
+      "size_max": false
+    }
+  ]
+}
