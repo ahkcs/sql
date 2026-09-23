@@ -125,8 +125,20 @@ def delta(pre, post):
 def provision(http, group_path, rules_path, mode_setting, passwords, verbose=True):
     """Idempotent load of the §3.3 policy. `passwords`: {identity: password}.
     Returns a report dict; every step records its HTTP status so a partial
-    provision is visible rather than silent."""
+    provision is visible rather than silent.
+
+    Mode is enabled FIRST: creating a workload group while
+    `wlm.workload_group.mode` is `disabled` fails with a 500, which silently left
+    `group_ids` empty and skipped every rule.
+
+    GROUPS must also keep total cpu and total memory <= 1.0 across all groups, or
+    the create is rejected with "Total resource allocation for <res> will go above
+    the max limit of 1.0" -- including any groups left over from earlier runs.
+    """
     rep = {"groups": {}, "users": {}, "roles": {}, "rolesmappings": {}, "rules": {}}
+
+    ok, body = set_mode(http, "enabled", mode_setting)
+    rep["mode_enabled"] = ok if ok else body[:200]
 
     for g in GROUPS:
         s, body = http("PUT", group_path, json.dumps(g))
@@ -162,8 +174,6 @@ def provision(http, group_path, rules_path, mode_setting, passwords, verbose=Tru
         else:
             rep["rules"][role] = "skipped (no id for group %r)" % group
 
-    ok, body = set_mode(http, "enabled", mode_setting)
-    rep["mode_enabled"] = ok if ok else body[:200]
     if verbose:
         print(json.dumps(rep, indent=2))
     return rep
