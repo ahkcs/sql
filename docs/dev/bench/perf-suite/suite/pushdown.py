@@ -102,13 +102,19 @@ OPS = [
 UNBOUNDED = "requestedTotalSize=2147483647"
 _ENUM = re.compile(r"Enumerable(Aggregate|Sort|Limit|Calc|Join|Window)")
 _PUSH_CTX = re.compile(r"PushDownContext=\[\[(.*?)\]\s*,\s*OpenSearchRequestBuilder", re.S)
+# booleans push as a bare field reference, possibly nested in a conjunction:
+# `FILTER->$11` or `FILTER->AND(>=($7, '...'), $11)`
+_BARE_FIELD_FILTER = re.compile(r"FILTER->(?:[^,]*?[(,]\s*)?\$\d+\s*[),]")
+# the optimizer folds an unsatisfiable predicate to an empty relation; that is
+# optimal, not a fallback
+_CONST_EMPTY = re.compile(r"EnumerableValues\(tuples=\[\[\]\]\)")
 
 # Ops whose real cost is the reduction, so they are only safe if AGGREGATION pushes.
 # top/rare/dedup always add a coordinator-side Window; that is cheap when the
 # grouped result is what crosses the wire, ruinous when raw rows do.
 AGG_CLASS = ("groupby", "dc", "count_field", "min_max", "avg_sum", "bin", "span_time",
              "top", "rare", "dedup")
-FILTER_CLASS = ("filter_eq", "filter_range", "like", "isnull")
+FILTER_CLASS = ("filter_eq", "filter_range", "like", "isnull", "cidr")
 
 
 def build_matrix(suites=("fidelity",)):
@@ -136,19 +142,30 @@ def classify(physical, op, literal=None):
     server-side). It only matters when the reduction did *not* push, because then
     that many raw rows really do cross the wire.
     """
+    if _CONST_EMPTY.search(physical):
+        return {"verdict": "EMPTY_CONSTANT_FOLDED", "pushed": {}, "predicate_pushed": None,
+                "fallback_ops": [], "size_max": False}
     m = _PUSH_CTX.search(physical)
     ctx = m.group(1) if m else ""
     pushed = {"agg": "AGGREGATION->" in ctx, "filter": "FILTER->" in ctx,
-              "sort": "SORT->" in ctx, "limit": "LIMIT->" in ctx}
+              "sort": "SORT->" in ctx, "limit": "LIMIT->" in ctx,
+              "script": "SCRIPT->" in ctx}
     fallback = sorted(set(_ENUM.findall(physical)))
     size_max = UNBOUNDED in physical
 
     # For filter ops the time-range WHERE is always pushed, so presence of
     # FILTER-> proves nothing about the op's own predicate: look for its literal.
+    # A predicate can reach the shards three ways: as a native query (literal
+    # visible in FILTER->), as a bare field reference (booleans render as
+    # `FILTER->$11`, with no literal to match), or as a SCRIPT-> (pushed, but
+    # evaluated per document -- the same machinery that makes rex-on-text ~18x
+    # slower than the doc_values path, so it is tracked separately).
     predicate_pushed = None
     if op in FILTER_CLASS:
         token = {"isnull": "IS NULL"}.get(op, (literal or "").strip("'"))
-        predicate_pushed = bool(token) and token in ctx
+        predicate_pushed = (pushed["script"]
+                            or (bool(token) and token in ctx)
+                            or bool(_BARE_FIELD_FILTER.search(ctx)))
 
     if op in AGG_CLASS:
         ok = pushed["agg"]
@@ -160,7 +177,8 @@ def classify(physical, op, literal=None):
         ok = pushed["agg"] or pushed["sort"]
 
     if ok:
-        verdict = "PUSHED"
+        # scripted pushdown reaches the shards but pays a per-document script cost
+        verdict = "PUSHED_SCRIPT" if pushed["script"] else "PUSHED"
     else:
         # unbounded row flow = no pushed reduction and no pushed row cap
         verdict = ("FALLBACK_UNBOUNDED" if (size_max and not pushed["agg"] and not pushed["limit"])
