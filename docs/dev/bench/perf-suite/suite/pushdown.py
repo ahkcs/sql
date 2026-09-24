@@ -31,12 +31,12 @@ import re
 from . import identities, runinfo
 from .runner import make_http
 
-INDEX = "mock-mixed-pi"
+FIDELITY_INDEX = "mock-mixed-pi"
+TYPES_INDEX = "mock-types"
 TW = "| where @timestamp >= '2026-04-10 23:00:00' "
 
 # label, field, mapped type, class (drives which ops apply + literal choice).
-# Only types PRESENT in the fidelity dataset; see MISSING_TYPES for the gap.
-TYPE_FIELDS = [
+FIDELITY_FIELDS = [
     ("keyword_lowcard", "severityText", "keyword", "str"),
     ("keyword_highcard", "resource.attributes.k8s.pod.name", "keyword", "str"),
     ("text_bare", "body", "text (no subfield)", "str"),
@@ -49,30 +49,54 @@ TYPE_FIELDS = [
     ("object", "log.mdc", "object", "obj"),
 ]
 
-# Types NOT in the dataset — pushdown behaviour for these is untested (needs a
-# mapping change + reload, or a small side index).
-MISSING_TYPES = ["boolean", "double", "float", "scaled_float", "half_float",
-                 "unsigned_long", "ip", "nested", "flattened", "wildcard", "alias"]
+# The eleven types the fidelity dataset lacks, carried by mock-types
+# (mock_data/types_index.py). env_* is the same VALUE under three mappings, which
+# isolates mapping from data for the customer's slow `stats count() by env`.
+TYPES_FIELDS = [
+    ("env_text_bare", "env_text", "text (no subfield)", "str"),
+    ("env_keyword", "env_kw", "keyword", "str"),
+    ("env_multifield", "env_multi", "text (+.keyword)", "str"),
+    ("env_alias", "env_alias", "alias -> keyword", "str"),
+    ("boolean", "flag_bool", "boolean", "bool"),
+    ("double", "val_double", "double", "num"),
+    ("float", "val_float", "float", "num"),
+    ("half_float", "val_half", "half_float", "num"),
+    ("scaled_float", "val_scaled", "scaled_float", "num"),
+    ("unsigned_long", "val_ulong", "unsigned_long", "num"),
+    ("ip", "client_ip", "ip", "ip"),
+    ("wildcard", "path_wildcard", "wildcard", "wild"),
+    ("flattened_leaf", "payload_flat.region", "flattened (leaf)", "flat"),
+    ("nested_leaf", "events.name", "nested (leaf)", "nested"),
+]
 
-LITERAL = {"str": "'x'", "num": "1", "date": "'2026-04-10 23:00:00'", "obj": "'x'"}
+SUITES = {"fidelity": (FIDELITY_INDEX, FIDELITY_FIELDS),
+          "types": (TYPES_INDEX, TYPES_FIELDS)}
+
+LITERAL = {"str": "'x'", "num": "1", "date": "'2026-04-10 23:00:00'", "obj": "'x'",
+           "bool": "true", "ip": "'10.0.0.1'", "wild": "'/auth/v1/1'",
+           "flat": "'us-east-1'", "nested": "'auth'"}
 
 # op, template, applicable classes. {f} = field, {lit} = type-appropriate literal.
+_ALL = ("str", "num", "date", "obj", "bool", "ip", "wild", "flat", "nested")
+_SCALAR = ("str", "num", "date", "bool", "ip", "wild", "flat")
+
 OPS = [
-    ("groupby", "stats count() by {f}", ("str", "num", "date", "obj")),
-    ("dc", "stats dc({f})", ("str", "num", "date")),
-    ("count_field", "stats count({f})", ("str", "num", "date")),
-    ("min_max", "stats min({f}) as mn, max({f}) as mx", ("str", "num", "date")),
+    ("groupby", "stats count() by {f}", _ALL),
+    ("dc", "stats dc({f})", _SCALAR),
+    ("count_field", "stats count({f})", _SCALAR),
+    ("min_max", "stats min({f}) as mn, max({f}) as mx", ("str", "num", "date", "ip")),
     ("avg_sum", "stats avg({f}) as a, sum({f}) as s", ("num",)),
-    ("filter_eq", "where {f} = {lit} | head 100", ("str", "num", "date")),
+    ("filter_eq", "where {f} = {lit} | head 100", _SCALAR),
     ("filter_range", "where {f} > {lit} | head 100", ("num", "date")),
-    ("sort", "sort {f} | head 100", ("str", "num", "date")),
-    ("dedup", "dedup {f} | head 100", ("str", "num", "date")),
-    ("top", "top 10 {f}", ("str", "num", "date")),
-    ("rare", "rare {f}", ("str", "num", "date")),
-    ("like", "where like({f}, '%x%') | head 100", ("str",)),
-    ("isnull", "where isnull({f}) | head 100", ("str", "num", "date")),
+    ("sort", "sort {f} | head 100", _SCALAR),
+    ("dedup", "dedup {f} | head 100", ("str", "num", "date", "bool", "ip")),
+    ("top", "top 10 {f}", _SCALAR),
+    ("rare", "rare {f}", _SCALAR),
+    ("like", "where like({f}, '%x%') | head 100", ("str", "wild")),
+    ("isnull", "where isnull({f}) | head 100", _SCALAR),
     ("bin", "bin {f} span=5 | stats count() by {f}", ("num",)),
     ("span_time", "stats count() by span({f}, 1h)", ("date",)),
+    ("cidr", "where cidrmatch({f}, '10.0.0.0/8') | head 100", ("ip",)),
 ]
 
 UNBOUNDED = "requestedTotalSize=2147483647"
@@ -87,17 +111,19 @@ AGG_CLASS = ("groupby", "dc", "count_field", "min_max", "avg_sum", "bin", "span_
 FILTER_CLASS = ("filter_eq", "filter_range", "like", "isnull")
 
 
-def build_matrix():
+def build_matrix(suites=("fidelity",)):
     out = []
-    for label, field, mtype, cls in TYPE_FIELDS:
-        for op, tmpl, classes in OPS:
-            if cls not in classes:
-                continue
-            lit = LITERAL[cls]
-            q = tmpl.replace("{f}", field).replace("{lit}", lit)
-            out.append({"type_label": label, "field": field, "mapped_type": mtype,
-                        "op": op, "literal": lit,
-                        "ppl": "source=%s %s| %s" % (INDEX, TW, q)})
+    for suite in suites:
+        index, fields = SUITES[suite]
+        for label, field, mtype, cls in fields:
+            for op, tmpl, classes in OPS:
+                if cls not in classes:
+                    continue
+                lit = LITERAL[cls]
+                q = tmpl.replace("{f}", field).replace("{lit}", lit)
+                out.append({"suite": suite, "index": index, "type_label": label,
+                            "field": field, "mapped_type": mtype, "op": op, "literal": lit,
+                            "ppl": "source=%s %s| %s" % (index, TW, q)})
     return out
 
 
@@ -163,23 +189,30 @@ def main():
     ap.add_argument("--host")
     ap.add_argument("--auth")
     ap.add_argument("--as-user", dest="as_user")
+    ap.add_argument("--suite", default="fidelity",
+                    help="comma-separated: fidelity,types (types needs mock-types loaded "
+                         "via `python3 -m mock_data.types_index`)")
     ap.add_argument("--out", default="results/pushdown.json")
     ap.add_argument("--list", action="store_true")
     args = ap.parse_args()
 
-    matrix = build_matrix()
+    suites = tuple(x.strip() for x in args.suite.split(",") if x.strip())
+    bad = [s for s in suites if s not in SUITES]
+    if bad:
+        raise SystemExit("unknown suite(s) %s; known: %s" % (bad, sorted(SUITES)))
+    matrix = build_matrix(suites)
     if args.list:
         for m in matrix:
-            print("%-18s %-13s %s" % (m["type_label"], m["op"], m["ppl"]))
-        print("\n%d points (%d types x ops)" % (len(matrix), len(TYPE_FIELDS)))
+            print("%-9s %-18s %-13s %s" % (m["suite"], m["type_label"], m["op"], m["ppl"]))
+        print("\n%d points across suites %s" % (len(matrix), list(suites)))
         return
     if not args.host:
         ap.error("--host required (or --list)")
 
     http = make_http(args.host, identities.auth_for(args.as_user, args.auth), timeout=60)
     result = {"run": runinfo.header("pushdown", args.host, as_user=args.as_user,
-                                    index=INDEX, points=len(matrix),
-                                    missing_types=MISSING_TYPES),
+                                    suites=list(suites), points=len(matrix),
+                                    indices=sorted({m["index"] for m in matrix})),
               "points": []}
     for m in matrix:
         physical, err = explain(http, m["ppl"])
@@ -190,7 +223,7 @@ def main():
             rec.update(classify(physical, m["op"], m.get("literal")))
             rec["physical"] = physical
         result["points"].append(rec)
-        print("%-18s %-13s %s%s" % (m["type_label"], m["op"], rec["verdict"],
+        print("%-9s %-18s %-13s %s%s" % (m["suite"], m["type_label"], m["op"], rec["verdict"],
                                     "  " + rec.get("error", "") if err else ""))
 
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
