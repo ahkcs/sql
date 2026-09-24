@@ -59,7 +59,10 @@ MAPPING = {
         "val_ulong": {"type": "unsigned_long"},
         "client_ip": {"type": "ip"},
         "path_wildcard": {"type": "wildcard"},
-        "payload_flat": {"type": "flattened"},
+        # OpenSearch calls this flat_object; `flattened` is the Elasticsearch name and is
+        # rejected with "No handler for type [flattened]". Verified against this domain:
+        # every other type here is accepted, flat_object is the only rename needed.
+        "payload_flat": {"type": "flat_object"},
         "events": {"type": "nested",
                    "properties": {"name": {"type": "keyword"},
                                   "code": {"type": "integer"}}},

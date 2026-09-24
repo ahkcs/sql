@@ -65,7 +65,7 @@ TYPES_FIELDS = [
     ("unsigned_long", "val_ulong", "unsigned_long", "num"),
     ("ip", "client_ip", "ip", "ip"),
     ("wildcard", "path_wildcard", "wildcard", "wild"),
-    ("flattened_leaf", "payload_flat.region", "flattened (leaf)", "flat"),
+    ("flat_object_leaf", "payload_flat.region", "flat_object (leaf)", "flat"),
     ("nested_leaf", "events.name", "nested (leaf)", "nested"),
 ]
 
