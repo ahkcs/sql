@@ -1,0 +1,656 @@
+{
+  "run": {
+    "run_id": "usecase-20260924T163514Z-7dfc",
+    "pillar": "usecase",
+    "timestamp": "2026-09-24T16:35:14+00:00",
+    "host": "https://search-ppl-perf-tier2-hfmrk3ra3wgzmo7vnp7juptyny.us-east-1.es.amazonaws.com",
+    "tier": "tier2",
+    "git_sha": null,
+    "schema_version": "0.2.0",
+    "wlm_policy_version": "1.0",
+    "as_user": "admin",
+    "identities": [
+      "admin"
+    ],
+    "cache_mode": "rolling",
+    "window_step_s": 30,
+    "solo_reps": 6,
+    "solo_warmup": 2,
+    "u7_noisy_threads": 20,
+    "index_patterns": [
+      "mock-kv-pi",
+      "mock-json-*",
+      "mock-*"
+    ],
+    "u1_ranges": "1h,1d,7d",
+    "u3_range": "7d",
+    "dashboard_variants": [
+      "error_triage",
+      "ops_overview",
+      "service_health"
+    ]
+  },
+  "host": "https://search-ppl-perf-tier2-hfmrk3ra3wgzmo7vnp7juptyny.us-east-1.es.amazonaws.com",
+  "baseline": {
+    "cluster_status": "green",
+    "cpu_max_pct": 6,
+    "heap_max_pct": 79,
+    "search_active": 0,
+    "search_queue": 0,
+    "search_rejected": 0,
+    "old_gc_ms": 0,
+    "active_shards": 661
+  },
+  "results": [
+    {
+      "scenario": "U1 dashboard refresh",
+      "id": "u1",
+      "rows": [
+        {
+          "wall_s": 0.714,
+          "panels": 6,
+          "time_range": "1h",
+          "avg_panel_s": 0.46,
+          "slowest_panel_s": 0.712,
+          "errors": 0,
+          "warnings": 0,
+          "verdict": "GOOD",
+          "variant": "ops_overview",
+          "index_pattern": "mock-kv-pi"
+        },
+        {
+          "wall_s": 0.973,
+          "panels": 6,
+          "time_range": "1h",
+          "avg_panel_s": 0.62,
+          "slowest_panel_s": 0.971,
+          "errors": 0,
+          "warnings": 0,
+          "verdict": "GOOD",
+          "variant": "ops_overview",
+          "index_pattern": "mock-json-*"
+        },
+        {
+          "wall_s": 1.346,
+          "panels": 6,
+          "time_range": "1h",
+          "avg_panel_s": 0.575,
+          "slowest_panel_s": 1.344,
+          "errors": 0,
+          "warnings": 0,
+          "verdict": "GOOD",
+          "variant": "ops_overview",
+          "index_pattern": "mock-*"
+        },
+        {
+          "wall_s": 0.249,
+          "panels": 5,
+          "time_range": "1h",
+          "avg_panel_s": 0.164,
+          "slowest_panel_s": 0.247,
+          "errors": 0,
+          "warnings": 0,
+          "verdict": "GOOD",
+          "variant": "error_triage",
+          "index_pattern": "mock-kv-pi"
+        },
+        {
+          "wall_s": 0.544,
+          "panels": 5,
+          "time_range": "1h",
+          "avg_panel_s": 0.343,
+          "slowest_panel_s": 0.543,
+          "errors": 0,
+          "warnings": 0,
+          "verdict": "GOOD",
+          "variant": "error_triage",
+          "index_pattern": "mock-json-*"
+        },
+        {
+          "wall_s": 0.717,
+          "panels": 5,
+          "time_range": "1h",
+          "avg_panel_s": 0.488,
+          "slowest_panel_s": 0.716,
+          "errors": 0,
+          "warnings": 0,
+          "verdict": "GOOD",
+          "variant": "error_triage",
+          "index_pattern": "mock-*"
+        },
+        {
+          "wall_s": 0.141,
+          "panels": 5,
+          "time_range": "1h",
+          "avg_panel_s": 0.099,
+          "slowest_panel_s": 0.14,
+          "errors": 0,
+          "warnings": 0,
+          "verdict": "GOOD",
+          "variant": "service_health",
+          "index_pattern": "mock-kv-pi"
+        },
+        {
+          "wall_s": 0.222,
+          "panels": 5,
+          "time_range": "1h",
+          "avg_panel_s": 0.168,
+          "slowest_panel_s": 0.221,
+          "errors": 0,
+          "warnings": 0,
+          "verdict": "GOOD",
+          "variant": "service_health",
+          "index_pattern": "mock-json-*"
+        },
+        {
+          "wall_s": 0.386,
+          "panels": 5,
+          "time_range": "1h",
+          "avg_panel_s": 0.243,
+          "slowest_panel_s": 0.385,
+          "errors": 0,
+          "warnings": 0,
+          "verdict": "GOOD",
+          "variant": "service_health",
+          "index_pattern": "mock-*"
+        },
+        {
+          "wall_s": 0.337,
+          "panels": 6,
+          "time_range": "1d",
+          "avg_panel_s": 0.181,
+          "slowest_panel_s": 0.336,
+          "errors": 0,
+          "warnings": 0,
+          "verdict": "GOOD",
+          "variant": "ops_overview",
+          "index_pattern": "mock-kv-pi"
+        },
+        {
+          "wall_s": 0.708,
+          "panels": 6,
+          "time_range": "1d",
+          "avg_panel_s": 0.364,
+          "slowest_panel_s": 0.706,
+          "errors": 0,
+          "warnings": 0,
+          "verdict": "GOOD",
+          "variant": "ops_overview",
+          "index_pattern": "mock-json-*"
+        },
+        {
+          "wall_s": 0.957,
+          "panels": 6,
+          "time_range": "1d",
+          "avg_panel_s": 0.488,
+          "slowest_panel_s": 0.956,
+          "errors": 0,
+          "warnings": 0,
+          "verdict": "GOOD",
+          "variant": "ops_overview",
+          "index_pattern": "mock-*"
+        },
+        {
+          "wall_s": 0.478,
+          "panels": 6,
+          "time_range": "7d",
+          "avg_panel_s": 0.391,
+          "slowest_panel_s": 0.477,
+          "errors": 0,
+          "warnings": 0,
+          "verdict": "GOOD",
+          "variant": "ops_overview",
+          "index_pattern": "mock-kv-pi"
+        },
+        {
+          "wall_s": 1.241,
+          "panels": 6,
+          "time_range": "7d",
+          "avg_panel_s": 0.869,
+          "slowest_panel_s": 1.239,
+          "errors": 0,
+          "warnings": 0,
+          "verdict": "GOOD",
+          "variant": "ops_overview",
+          "index_pattern": "mock-json-*"
+        },
+        {
+          "wall_s": 1.841,
+          "panels": 6,
+          "time_range": "7d",
+          "avg_panel_s": 1.167,
+          "slowest_panel_s": 1.84,
+          "errors": 0,
+          "warnings": 0,
+          "verdict": "GOOD",
+          "variant": "ops_overview",
+          "index_pattern": "mock-*"
+        }
+      ],
+      "ranges": [
+        "1h",
+        "1d",
+        "7d"
+      ],
+      "wide_variant": "ops_overview",
+      "median_s": 0.708,
+      "p95_s": 1.494,
+      "max_s": 1.841,
+      "errors": 0,
+      "warnings": 0,
+      "verdict": "GOOD",
+      "metrics": {
+        "peaks": {
+          "cpu_max_pct": 69,
+          "heap_max_pct": 79,
+          "search_queue_peak": 0
+        },
+        "pre": {
+          "cluster_status": "green",
+          "cpu_max_pct": 6,
+          "heap_max_pct": 79,
+          "search_active": 0,
+          "search_queue": 0,
+          "search_rejected": 0,
+          "old_gc_ms": 0,
+          "active_shards": 661
+        },
+        "post": {
+          "cluster_status": "green",
+          "cpu_max_pct": 69,
+          "heap_max_pct": 59,
+          "search_active": 0,
+          "search_queue": 0,
+          "search_rejected": 0,
+          "old_gc_ms": 0,
+          "active_shards": 661
+        },
+        "series": [
+          {
+            "cluster_status": "green",
+            "cpu_max_pct": 6,
+            "heap_max_pct": 79,
+            "search_active": 0,
+            "search_queue": 0,
+            "search_rejected": 0,
+            "old_gc_ms": 0,
+            "active_shards": 661,
+            "_t": 1790267715.3940308
+          },
+          {
+            "cluster_status": "green",
+            "cpu_max_pct": 37,
+            "heap_max_pct": 57,
+            "search_active": 156,
+            "search_queue": 0,
+            "search_rejected": 0,
+            "old_gc_ms": 0,
+            "active_shards": 661,
+            "_t": 1790267720.4625082
+          },
+          {
+            "cluster_status": "green",
+            "cpu_max_pct": 69,
+            "heap_max_pct": 59,
+            "search_active": 92,
+            "search_queue": 0,
+            "search_rejected": 0,
+            "old_gc_ms": 0,
+            "active_shards": 661,
+            "_t": 1790267725.5099268
+          }
+        ],
+        "deltas": {
+          "search_rejected_delta": 0,
+          "old_gc_ms_delta": 0
+        }
+      }
+    },
+    {
+      "scenario": "U3 investigation session",
+      "id": "u3",
+      "time_range": "7d",
+      "steps": [
+        {
+          "step": 0,
+          "label": "broad_count",
+          "s": 0.043,
+          "ok": true,
+          "warn": false,
+          "rows": 1,
+          "verdict": "GOOD",
+          "missed_target": false,
+          "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-04 00:00:00' and @timestamp < '2026-04-11 00:00:00' | stats count()"
+        },
+        {
+          "step": 1,
+          "label": "count_by_sev",
+          "s": 0.17,
+          "ok": true,
+          "warn": false,
+          "rows": 4,
+          "verdict": "GOOD",
+          "missed_target": false,
+          "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-04 00:00:00' and @timestamp < '2026-04-11 00:00:00' | stats count() by severityText"
+        },
+        {
+          "step": 2,
+          "label": "filter_error",
+          "s": 0.043,
+          "ok": true,
+          "warn": false,
+          "rows": 1,
+          "verdict": "GOOD",
+          "missed_target": false,
+          "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-04 00:00:00' and @timestamp < '2026-04-11 00:00:00' | where severityText='ERROR' | stats count()"
+        },
+        {
+          "step": 3,
+          "label": "error_by_service",
+          "s": 0.089,
+          "ok": true,
+          "warn": false,
+          "rows": 120,
+          "verdict": "GOOD",
+          "missed_target": false,
+          "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-04 00:00:00' and @timestamp < '2026-04-11 00:00:00' | where severityText='ERROR' | stats count() by resource.attributes.service.name"
+        },
+        {
+          "step": 4,
+          "label": "error_timeline",
+          "s": 0.171,
+          "ok": true,
+          "warn": false,
+          "rows": 168,
+          "verdict": "GOOD",
+          "missed_target": false,
+          "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-04 00:00:00' and @timestamp < '2026-04-11 00:00:00' | where severityText='ERROR' | stats count() by span(@timestamp, 1h)"
+        },
+        {
+          "step": 5,
+          "label": "error_sample",
+          "s": 0.188,
+          "ok": true,
+          "warn": false,
+          "rows": 100,
+          "verdict": "GOOD",
+          "missed_target": false,
+          "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-04 00:00:00' and @timestamp < '2026-04-11 00:00:00' | where severityText='ERROR' | head 100"
+        },
+        {
+          "step": 6,
+          "label": "rex_extract",
+          "s": 0.204,
+          "ok": true,
+          "warn": false,
+          "rows": 100,
+          "verdict": "GOOD",
+          "missed_target": false,
+          "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-04 00:00:00' and @timestamp < '2026-04-11 00:00:00' | where severityText='ERROR' | rex field=body '(?<w>\\w+)' | head 100"
+        },
+        {
+          "step": 7,
+          "label": "rex_aggregate",
+          "s": 24.426,
+          "ok": true,
+          "warn": false,
+          "rows": 10000,
+          "verdict": "POOR",
+          "missed_target": true,
+          "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-04 00:00:00' and @timestamp < '2026-04-11 00:00:00' | where severityText='ERROR' | rex field=body '(?<w>\\w+)' | stats count() by w"
+        },
+        {
+          "step": 8,
+          "label": "dedup_pod",
+          "s": 0.497,
+          "ok": true,
+          "warn": false,
+          "rows": 100,
+          "verdict": "GOOD",
+          "missed_target": false,
+          "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-04 00:00:00' and @timestamp < '2026-04-11 00:00:00' | where severityText='ERROR' | dedup resource.attributes.k8s.pod.name | head 100"
+        },
+        {
+          "step": 9,
+          "label": "sort_recent",
+          "s": 0.347,
+          "ok": true,
+          "warn": false,
+          "rows": 50,
+          "verdict": "GOOD",
+          "missed_target": false,
+          "ppl": "source=mock-mixed-pi | where @timestamp >= '2026-04-04 00:00:00' and @timestamp < '2026-04-11 00:00:00' | where severityText='ERROR' | sort @timestamp | head 50"
+        }
+      ],
+      "steps_missing_target": [
+        "rex_aggregate"
+      ],
+      "completed_ok": true,
+      "median_s": 0.179,
+      "p95_s": 13.658,
+      "max_s": 24.426,
+      "errors": 0,
+      "warnings": 0,
+      "verdict": "GOOD",
+      "metrics": {
+        "peaks": {
+          "cpu_max_pct": 69,
+          "heap_max_pct": 79,
+          "search_queue_peak": 0
+        },
+        "pre": {
+          "cluster_status": "green",
+          "cpu_max_pct": 69,
+          "heap_max_pct": 59,
+          "search_active": 0,
+          "search_queue": 0,
+          "search_rejected": 0,
+          "old_gc_ms": 0,
+          "active_shards": 661
+        },
+        "post": {
+          "cluster_status": "green",
+          "cpu_max_pct": 57,
+          "heap_max_pct": 76,
+          "search_active": 28,
+          "search_queue": 0,
+          "search_rejected": 0,
+          "old_gc_ms": 0,
+          "active_shards": 661
+        },
+        "series": [
+          {
+            "cluster_status": "green",
+            "cpu_max_pct": 69,
+            "heap_max_pct": 59,
+            "search_active": 0,
+            "search_queue": 0,
+            "search_rejected": 0,
+            "old_gc_ms": 0,
+            "active_shards": 661,
+            "_t": 1790267726.3129783
+          },
+          {
+            "cluster_status": "green",
+            "cpu_max_pct": 16,
+            "heap_max_pct": 59,
+            "search_active": 0,
+            "search_queue": 0,
+            "search_rejected": 0,
+            "old_gc_ms": 0,
+            "active_shards": 661,
+            "_t": 1790267731.3508935
+          },
+          {
+            "cluster_status": "green",
+            "cpu_max_pct": 44,
+            "heap_max_pct": 59,
+            "search_active": 0,
+            "search_queue": 0,
+            "search_rejected": 0,
+            "old_gc_ms": 0,
+            "active_shards": 661,
+            "_t": 1790267736.3864484
+          },
+          {
+            "cluster_status": "green",
+            "cpu_max_pct": 22,
+            "heap_max_pct": 59,
+            "search_active": 0,
+            "search_queue": 0,
+            "search_rejected": 0,
+            "old_gc_ms": 0,
+            "active_shards": 661,
+            "_t": 1790267741.419619
+          },
+          {
+            "cluster_status": "green",
+            "cpu_max_pct": 5,
+            "heap_max_pct": 59,
+            "search_active": 0,
+            "search_queue": 0,
+            "search_rejected": 0,
+            "old_gc_ms": 0,
+            "active_shards": 661,
+            "_t": 1790267746.4522767
+          },
+          {
+            "cluster_status": "green",
+            "cpu_max_pct": 6,
+            "heap_max_pct": 59,
+            "search_active": 0,
+            "search_queue": 0,
+            "search_rejected": 0,
+            "old_gc_ms": 0,
+            "active_shards": 661,
+            "_t": 1790267751.4894903
+          },
+          {
+            "cluster_status": "green",
+            "cpu_max_pct": 2,
+            "heap_max_pct": 59,
+            "search_active": 0,
+            "search_queue": 0,
+            "search_rejected": 0,
+            "old_gc_ms": 0,
+            "active_shards": 661,
+            "_t": 1790267756.5242455
+          },
+          {
+            "cluster_status": "green",
+            "cpu_max_pct": 35,
+            "heap_max_pct": 59,
+            "search_active": 0,
+            "search_queue": 0,
+            "search_rejected": 0,
+            "old_gc_ms": 0,
+            "active_shards": 661,
+            "_t": 1790267761.5724251
+          },
+          {
+            "cluster_status": "green",
+            "cpu_max_pct": 36,
+            "heap_max_pct": 67,
+            "search_active": 28,
+            "search_queue": 0,
+            "search_rejected": 0,
+            "old_gc_ms": 0,
+            "active_shards": 661,
+            "_t": 1790267766.6100354
+          },
+          {
+            "cluster_status": "green",
+            "cpu_max_pct": 35,
+            "heap_max_pct": 75,
+            "search_active": 28,
+            "search_queue": 0,
+            "search_rejected": 0,
+            "old_gc_ms": 0,
+            "active_shards": 661,
+            "_t": 1790267771.6440537
+          },
+          {
+            "cluster_status": "green",
+            "cpu_max_pct": 34,
+            "heap_max_pct": 78,
+            "search_active": 28,
+            "search_queue": 0,
+            "search_rejected": 0,
+            "old_gc_ms": 0,
+            "active_shards": 661,
+            "_t": 1790267776.6793313
+          },
+          {
+            "cluster_status": "green",
+            "cpu_max_pct": 33,
+            "heap_max_pct": 77,
+            "search_active": 25,
+            "search_queue": 0,
+            "search_rejected": 0,
+            "old_gc_ms": 0,
+            "active_shards": 661,
+            "_t": 1790267781.7160177
+          },
+          {
+            "cluster_status": "green",
+            "cpu_max_pct": 27,
+            "heap_max_pct": 79,
+            "search_active": 28,
+            "search_queue": 0,
+            "search_rejected": 0,
+            "old_gc_ms": 0,
+            "active_shards": 661,
+            "_t": 1790267786.750102
+          },
+          {
+            "cluster_status": "green",
+            "cpu_max_pct": 59,
+            "heap_max_pct": 72,
+            "search_active": 28,
+            "search_queue": 0,
+            "search_rejected": 0,
+            "old_gc_ms": 0,
+            "active_shards": 661,
+            "_t": 1790267791.786418
+          },
+          {
+            "cluster_status": "green",
+            "cpu_max_pct": 58,
+            "heap_max_pct": 77,
+            "search_active": 28,
+            "search_queue": 0,
+            "search_rejected": 0,
+            "old_gc_ms": 0,
+            "active_shards": 661,
+            "_t": 1790267796.820698
+          },
+          {
+            "cluster_status": "green",
+            "cpu_max_pct": 57,
+            "heap_max_pct": 76,
+            "search_active": 28,
+            "search_queue": 0,
+            "search_rejected": 0,
+            "old_gc_ms": 0,
+            "active_shards": 661,
+            "_t": 1790267801.8610663
+          }
+        ],
+        "deltas": {
+          "search_rejected_delta": 0,
+          "old_gc_ms_delta": 0
+        }
+      }
+    }
+  ],
+  "final": {
+    "cluster_status": "green",
+    "cpu_max_pct": 57,
+    "heap_max_pct": 76,
+    "search_active": 28,
+    "search_queue": 0,
+    "search_rejected": 0,
+    "old_gc_ms": 0,
+    "active_shards": 661
+  }
+}
