@@ -31,7 +31,7 @@ def main():
     out.append("# PPL Use-case Report — realistic user scenarios (plan §2.3)\n")
     out.append("| Field | Value |\n| --- | --- |")
     for k in ("run_id", "host", "tier", "git_sha", "cache_mode", "window_step_s",
-              "identities", "dashboard_variants", "index_patterns"):
+              "u1_ranges", "u3_range", "identities", "dashboard_variants", "index_patterns"):
         if run.get(k) is not None:
             out.append("| %s | %s |" % (k, run[k]))
     out.append("")
@@ -45,16 +45,20 @@ def main():
 
     # (1) verdict cards
     out.append("## (1) Per-scenario verdict cards\n")
-    out.append("| Scenario | verdict | median s | p95 s | max s | errors |")
-    out.append("|" + " --- |" * 6)
+    out.append("| Scenario | verdict | median s | p95 s | max s | errors | warnings |")
+    out.append("|" + " --- |" * 7)
     for k in ("u1", "u2", "u3", "u4", "u5", "u6", "u7"):
         r = res.get(k)
         if not r:
             continue
-        out.append("| %s | %s | %s | %s | %s | %s |" % (
+        out.append("| %s | %s | %s | %s | %s | %s | %s |" % (
             r["scenario"], r.get("verdict"), _f(r.get("median_s")), _f(r.get("p95_s")),
-            _f(r.get("max_s")), _f(r.get("errors"))))
-    out.append("\nUser-facing verdicts: GOOD <5s · ACCEPTABLE 5-10s · POOR >10s.\n")
+            _f(r.get("max_s")), _f(r.get("errors")), _f(r.get("warnings"))))
+    out.append("\nUser-facing verdicts: GOOD <5s · ACCEPTABLE 5-10s · POOR >10s. "
+               "**warnings** counts responses flagged incomplete — a shard that exceeds its "
+               "per-shard timeout returns partial data at HTTP 200, and results truncate "
+               "silently at the 10,000-row size limit, so a non-zero count means a "
+               "\"passing\" number may reflect less work than the query asked for.\n")
     for k in ("u1", "u2", "u3", "u4", "u5", "u6", "u7"):
         if res.get(k, {}).get("reason"):
             out.append("- **%s skipped:** %s" % (k.upper(), res[k]["reason"]))
@@ -64,13 +68,14 @@ def main():
     u1 = res.get("u1")
     if u1 and u1.get("rows"):
         out.append("## (2) U1 dashboard refresh — variant x index pattern\n")
-        out.append("| variant | index pattern | panels | wall-clock s | avg panel s | "
-                   "slowest panel s | errors | verdict |")
-        out.append("|" + " --- |" * 8)
+        out.append("| variant | index pattern | range | panels | wall-clock s | avg panel s | "
+                   "slowest panel s | errors | warn | verdict |")
+        out.append("|" + " --- |" * 10)
         for r in sorted(u1["rows"], key=lambda z: -z["wall_s"]):
-            out.append("| %s | `%s` | %d | %s | %s | %s | %d | %s |" % (
-                r["variant"], r["index_pattern"], r["panels"], _f(r["wall_s"]),
-                _f(r["avg_panel_s"]), _f(r["slowest_panel_s"]), r["errors"], r["verdict"]))
+            out.append("| %s | `%s` | %s | %d | %s | %s | %s | %d | %d | %s |" % (
+                r["variant"], r["index_pattern"], r.get("time_range", "-"), r["panels"],
+                _f(r["wall_s"]), _f(r["avg_panel_s"]), _f(r["slowest_panel_s"]),
+                r["errors"], r.get("warnings", 0), r["verdict"]))
         out.append("\n_Page load = slowest panel returning, so wall-clock is the user-facing number._\n")
 
     # (3) U2 trend
@@ -96,12 +101,13 @@ def main():
     u3 = res.get("u3")
     if u3 and u3.get("steps"):
         hi = max(x["s"] for x in u3["steps"])
-        out.append("## (4) U3 investigation session — latency per step\n")
-        out.append("| step | action | s | verdict | missed <5s | |")
-        out.append("|" + " --- |" * 6)
+        out.append("## (4) U3 investigation session — latency per step (window %s)\n"
+                   % u3.get("time_range", "1d"))
+        out.append("| step | action | s | rows | verdict | missed <5s | |")
+        out.append("|" + " --- |" * 7)
         for x in u3["steps"]:
-            out.append("| %d | %s | %s | %s | %s | `%s` |" % (
-                x["step"], x["label"], _f(x["s"]), x["verdict"],
+            out.append("| %d | %s | %s | %s | %s | %s | `%s` |" % (
+                x["step"], x["label"], _f(x["s"]), _f(x.get("rows")), x["verdict"],
                 "**MISS**" if x["missed_target"] else "", bar(x["s"], hi)))
         miss = u3.get("steps_missing_target") or []
         out.append("\n%d of %d steps missed the <5s target%s.\n" % (

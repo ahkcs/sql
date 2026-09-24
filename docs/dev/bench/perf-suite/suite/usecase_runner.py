@@ -132,27 +132,35 @@ def SESSION(win, tr="1d"):
     ]
 
 
-def _card(lat, errors, on=None):
-    """Normalised verdict card: median, p95, errors, user-facing verdict."""
+def _card(lat, errors, on=None, warnings=0):
+    """Normalised verdict card: median, p95, errors, warnings, user-facing verdict.
+
+    `warnings` matters as much as errors here: a shard that exceeds its per-shard
+    timeout returns PARTIAL data at HTTP 200, and results silently truncate at
+    plugins.query.size_limit (10,000 rows). Without this a query that quietly did
+    less work reads as a clean pass.
+    """
     if not lat:
-        return {"median_s": None, "p95_s": None, "errors": errors, "verdict": "NO_DATA"}
+        return {"median_s": None, "p95_s": None, "errors": errors,
+                "warnings": warnings, "verdict": "NO_DATA"}
     basis = statistics.median(lat) if on is None else on
     return {"median_s": round(statistics.median(lat), 3), "p95_s": round(pct(lat, 95), 3),
-            "max_s": round(max(lat), 3), "errors": errors,
+            "max_s": round(max(lat), 3), "errors": errors, "warnings": warnings,
             "verdict": verdicts.usecase_verdict(basis)}
 
 
-def _dashboard_once(http, panels, index, win, iteration=0):
-    ppls = [p(index, win(TR, iteration)) for p in panels]
+def _dashboard_once(http, panels, index, win, iteration=0, tr=TR):
+    ppls = [p(index, win(tr, iteration)) for p in panels]
     t0 = time.perf_counter()
     with ThreadPoolExecutor(max_workers=len(ppls)) as ex:
         res = list(ex.map(lambda p: run_ppl(http, p), ppls))
     wall = time.perf_counter() - t0
     lat = [r["s"] for r in res]
-    return {"wall_s": round(wall, 3), "panels": len(ppls),
+    return {"wall_s": round(wall, 3), "panels": len(ppls), "time_range": tr,
             "avg_panel_s": round(statistics.mean(lat), 3),
             "slowest_panel_s": round(max(lat), 3),
             "errors": sum(1 for r in res if not r["ok"]),
+            "warnings": sum(1 for r in res if r.get("warn")),
             "verdict": verdicts.usecase_verdict(wall)}
 
 
@@ -170,17 +178,31 @@ def _sampled(http, fn):
                  "deltas": metrics.delta(pre, post)}
 
 
-def u1(http, win):
-    """Dashboard refresh: one row per variant x index pattern."""
+def u1(http, win, ranges=("1h",), wide_variant="ops_overview"):
+    """Dashboard refresh: variant x index pattern, and (for `wide_variant`) x time range.
+
+    The wide axis is the realistic worst case we previously never measured: a user
+    pointing a dashboard at a week of data through an index pattern. That combines
+    full shard fan-out (281 primaries for mock-* vs 28 for one index) with a
+    whole-index window, and it is how customers actually query (`logs-*`).
+    Only one variant is swept wide so the run stays bounded.
+    """
     rows = []
     for name, panels in DASHBOARD_VARIANTS.items():
         for idx in INDEX_PATTERNS:
-            r = _dashboard_once(http, panels, idx, win)
+            r = _dashboard_once(http, panels, idx, win, tr=ranges[0])
             r.update(variant=name, index_pattern=idx)
+            rows.append(r)
+    for tr in ranges[1:]:
+        for idx in INDEX_PATTERNS:
+            r = _dashboard_once(http, DASHBOARD_VARIANTS[wide_variant], idx, win, tr=tr)
+            r.update(variant=wide_variant, index_pattern=idx)
             rows.append(r)
     walls = [r["wall_s"] for r in rows]
     return {"scenario": "U1 dashboard refresh", "id": "u1", "rows": rows,
-            **_card(walls, sum(r["errors"] for r in rows))}
+            "ranges": list(ranges), "wide_variant": wide_variant,
+            **_card(walls, sum(r["errors"] for r in rows),
+                    warnings=sum(r.get("warnings", 0) for r in rows))}
 
 
 def u2(http, win, cadence, duration):
@@ -191,47 +213,57 @@ def u2(http, win, cadence, duration):
         c = _dashboard_once(http, panels, "mock-kv-pi", win, iteration=i)
         series.append({"refresh": i, "t_offset_s": round(time.time() - t0, 1),
                        "wall_s": c["wall_s"], "slowest_panel_s": c["slowest_panel_s"],
-                       "errors": c["errors"]})
+                       "errors": c["errors"], "warnings": c.get("warnings", 0)})
         errs += c["errors"]
         i += 1
         time.sleep(max(0, cadence - c["wall_s"]))
     walls = [x["wall_s"] for x in series]
     return {"scenario": "U2 auto-refresh", "id": "u2", "cadence_s": cadence,
             "refreshes": len(series), "series": series,
-            **_card(walls, errs, on=pct(walls, 95) if walls else None)}
+            **_card(walls, errs, on=pct(walls, 95) if walls else None,
+                    warnings=sum(x.get("warnings", 0) for x in series))}
 
 
-def u3(http, win, think):
-    """Investigation session: ~10 steps, each flagged against the <5s target."""
+def u3(http, win, think, tr="1d"):
+    """Investigation session: ~10 steps, each flagged against the <5s target.
+
+    `tr` widens the whole session. The non-pushdown rex-then-aggregate step grows
+    linearly with the window, so running the same session over a week shows whether
+    the workflow degrades or becomes unusable.
+    """
     steps = []
-    for i, (label, ppl) in enumerate(SESSION(win)):
+    for i, (label, ppl) in enumerate(SESSION(win, tr)):
         r = run_ppl(http, ppl)
         steps.append({"step": i, "label": label, "s": round(r["s"], 3), "ok": r["ok"],
+                      "warn": bool(r.get("warn")), "rows": r.get("rows"),
                       "verdict": verdicts.usecase_verdict(r["s"]),
                       "missed_target": r["s"] >= 5.0, "ppl": ppl})
         time.sleep(think)
     lat = [s["s"] for s in steps]
-    return {"scenario": "U3 investigation session", "id": "u3", "steps": steps,
+    return {"scenario": "U3 investigation session", "id": "u3", "time_range": tr,
+            "steps": steps,
             "steps_missing_target": [s["label"] for s in steps if s["missed_target"]],
             "completed_ok": all(s["ok"] for s in steps),
-            **_card(lat, sum(0 if s["ok"] else 1 for s in steps))}
+            **_card(lat, sum(0 if s["ok"] else 1 for s in steps),
+                    warnings=sum(1 for s in steps if s["warn"]))}
 
 
 def u4(http, win, cadence, duration):
     """Alert-rule cadence: completed-within-budget vs missed."""
-    lats, missed, errs, i, end = [], 0, 0, 0, time.time() + duration
+    lats, missed, errs, warns, i, end = [], 0, 0, 0, 0, time.time() + duration
     while time.time() < end:
         ppl = "source=mock-kv-pi %s| stats count() by %s" % (win("15m", i), SEV)
         r = run_ppl(http, ppl)
         lats.append(r["s"])
         errs += 0 if r["ok"] else 1
+        warns += 1 if r.get("warn") else 0
         if r["s"] > cadence:
             missed += 1
         i += 1
         time.sleep(max(0, cadence - r["s"]))
     return {"scenario": "U4 alert-rule", "id": "u4", "cadence_s": cadence,
             "evaluations": len(lats), "within_budget": len(lats) - missed, "missed": missed,
-            **_card(lats, errs, on=pct(lats, 95) if lats else None)}
+            **_card(lats, errs, on=pct(lats, 95) if lats else None, warnings=warns)}
 
 
 def _u5_actions(http, win, dash=None, adhoc=None):
@@ -308,11 +340,13 @@ def u6(http, win):
         ppl = "source=mock-kv-pi %s| stats count() by resource.attributes.k8s.namespace.name" % win(tr)
         r = run_ppl(http, ppl)
         curve.append({"range": tr, "s": round(r["s"], 3), "ok": r["ok"],
+                      "warn": bool(r.get("warn")), "rows": r.get("rows"),
                       "verdict": verdicts.usecase_verdict(r["s"])})
     lat = [c["s"] for c in curve]
     return {"scenario": "U6 long-range", "id": "u6", "curve": curve,
             "growth_1h_to_7d_x": round(curve[-1]["s"] / curve[0]["s"], 1) if curve[0]["s"] else None,
-            **_card(lat, sum(0 if c["ok"] else 1 for c in curve), on=max(lat))}
+            **_card(lat, sum(0 if c["ok"] else 1 for c in curve), on=max(lat),
+                    warnings=sum(1 for c in curve if c["warn"]))}
 
 
 def noisy_queries(win):
@@ -451,6 +485,11 @@ def main():
     ap.add_argument("--as-user", dest="as_user")
     ap.add_argument("--scenarios", default="u1,u2,u3,u4,u5,u6,u7")
     ap.add_argument("--think", type=float, default=25.0, help="U3 think-time seconds")
+    ap.add_argument("--u1-ranges", default="1h",
+                    help="U1 time ranges; the first sweeps all variants x patterns, the rest "
+                         "sweep --u1-wide-variant x patterns (e.g. 1h,1d,7d)")
+    ap.add_argument("--u1-wide-variant", default="ops_overview")
+    ap.add_argument("--u3-range", default="1d", help="U3 session window (e.g. 1d or 7d)")
     ap.add_argument("--cache-mode", choices=["rolling", "fixed"], default="rolling",
                     help="rolling: slide the window per iteration (cache-cold, realistic); "
                          "fixed: pin an absolute window (cache-warm, the old behaviour)")
@@ -488,13 +527,15 @@ def main():
                                  solo_reps=args.solo_reps, solo_warmup=args.solo_warmup,
                                  u7_noisy_threads=args.u7_noisy_threads,
                                  index_patterns=INDEX_PATTERNS,
+                                 u1_ranges=args.u1_ranges, u3_range=args.u3_range,
                                  dashboard_variants=sorted(DASHBOARD_VARIANTS)),
            "host": args.host, "baseline": metrics.snapshot(http), "results": []}
 
     runners = {
-        "u1": lambda: u1(http, win),
+        "u1": lambda: u1(http, win, tuple(x.strip() for x in args.u1_ranges.split(",")),
+                         args.u1_wide_variant),
         "u2": lambda: u2(http, win, u2_cad, u2_dur),
-        "u3": lambda: u3(http, win, args.think),
+        "u3": lambda: u3(http, win, args.think, args.u3_range),
         "u4": lambda: u4(http, win, u4_cad, u4_dur),
         "u5": lambda: u5(http, win, u5_dur, solo_reps, solo_warmup, dash_http, adhoc_http),
         "u6": lambda: u6(http, win),
@@ -507,9 +548,9 @@ def main():
         r, m = _sampled(http, runners[key])
         r["metrics"] = m
         out["results"].append(r)
-        print("%-30s %-11s median=%s p95=%s errors=%s"
+        print("%-30s %-11s median=%s p95=%s errors=%s warnings=%s"
               % (r["scenario"], r.get("verdict"), r.get("median_s"), r.get("p95_s"),
-                 r.get("errors")))
+                 r.get("errors"), r.get("warnings")))
         with open(args.out, "w") as f:                 # persist per scenario
             json.dump(out, f, indent=2)
 
