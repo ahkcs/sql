@@ -35,8 +35,27 @@ _FAST <5 s · ACCEPTABLE 5–30 s · SLOW 30–300 s · ERROR failed._
 Most PPL commands are flat across time ranges (~0.05–0.5 s) because `head` early-terminates the scan, so they
 measure command overhead rather than scan cost. The slow tail is narrow and specific:
 
-- `rex` field extraction: 52 s at 1 d, up to **148 s at 7 d**
-- leading-wildcard `LIKE` on the message body: 62 s at 1 d, **122 s at 3 d**
+- **`rex` field extraction — 52 s at 1 d** (mean over the 10 body formats), **worst 148 s at 7 d**
+  (`mock-kv-quoted-wi`). Every one of the 10 formats is SLOW at 3 d and 7 d:
+
+  ```
+  source=mock-kv-quoted-wi | where @timestamp >= '2026-04-10 00:00:00'
+  | rex field=body "(?<w>\w+)" | stats count() by w
+  ```
+
+- **leading-wildcard `LIKE` on the message body — 64 s at 1 d, 75 s at 3 d, 87 s at 7 d.** A leading `%`
+  cannot use the index, so this is a per-document regex over the body:
+
+  ```
+  source=mock-mixed-pi | where @timestamp >= '2026-04-10 00:00:00'
+  | where like(body, '%timeout%')
+  ```
+
+  Note the shape: 6.4 s → 40.9 s from 5 m to 1 h (roughly linear in documents), then only 40.9 s → 86.6 s
+  from 1 h to 7 d despite **168× more data**. That flattening is what early termination looks like — this
+  query returns raw rows, so it is capped by the 10,000-row `size_limit` and almost certainly stops scanning
+  once the cap is met. Unconfirmed, and worth confirming: if so, **the 7 d number understates the real cost**
+  of the same predicate inside an aggregation.
 - **`eventstats` / `streamstats` hit the query memory circuit breaker** (`plugins.query.memory_limit=85 %`):
   they run 150–190 s and then abort with *"Insufficient resources… memory usage exceeds limit"*. These are
   whole-result-set operations — they emit a row per input document, so over 26 M–183 M rows they exhaust the
