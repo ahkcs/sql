@@ -2,7 +2,7 @@
 
 **For:** engineering manager + principal engineer · **Date:** 2026-09-24
 **Scope:** three benchmark pillars plus a type-coverage axis, run at fidelity scale, measured against the [Test Plan](https://chorus.aws.dev/doc/Wz9MgtrddN1P/PPL-Performance-Load--Use-Case-Test-Plan)
-**Ask:** six decisions (§6). Everything else here is context for them.
+**Contents:** what we built (§1), what we found (§2, §2b), how much to trust it (§3), where everything lives (§4).
 
 ---
 
@@ -30,6 +30,8 @@ Three pillars, each answering a different question, plus a fourth axis added thi
 ## 2. Headline results
 
 ### Perf — 576 points: 491 FAST · 23 ACCEPTABLE · 42 SLOW · 20 ERROR
+_FAST <5 s · ACCEPTABLE 5–30 s · SLOW 30–300 s · ERROR failed._
+
 Most PPL commands are flat across time ranges (~0.05–0.5 s) because `head` early-terminates the scan, so they
 measure command overhead rather than scan cost. The slow tail is narrow and specific:
 
@@ -173,47 +175,7 @@ verify) is what we would want from any benchmark:
 
 ---
 
-## 4. Known gaps — stated plainly
-
-1. **We verify speed, not correctness.** Fidelity runs use `--skip-correctness`. We have already seen two ways
-   results go quietly wrong (10,000-group truncation; partial results on shard timeout), so **a "fast" number
-   could mean less work was done.** This is the biggest gap.
-2. **Single runs, so no variance.** Every pillar ran once. We cannot distinguish a real 20 % regression from
-   noise, which means **the baseline currently has no error bars**.
-3. **Index patterns are barely covered** — 1 of 96 Perf templates uses a wildcard, though `logs-*` is how
-   customers actually query. Partially addressed in Use-case this week.
-4. **11 mapping types were untested until this week**; the first pass found three of them unqueryable.
-5. **Tier-1 / security-profile run never executed** (needs a local Docker daemon).
-6. **Observability sink not built** — results accumulate as files rather than trend lines. `ship.py` is written
-   and dry-run-verified but has nowhere to ship.
-
----
-
-## 5. Exit criteria status
-
-**The plan's [§4.2](https://chorus.aws.dev/doc/Wz9MgtrddN1P/PPL-Performance-Load--Use-Case-Test-Plan) Perf gates are not met.** Three categories miss them at fidelity scale: `rex`,
-`simple-search`, `dedup`. Load ([§4.3](https://chorus.aws.dev/doc/Wz9MgtrddN1P/PPL-Performance-Load--Use-Case-Test-Plan)) and Use-case ([§4.4](https://chorus.aws.dev/doc/Wz9MgtrddN1P/PPL-Performance-Load--Use-Case-Test-Plan)) gates pass.
-
-The honest framing: **the gates were written before we had fidelity-scale data.** A ≥90 % FAST requirement on
-`rex` is not achievable when `rex` over a day of logs is inherently a full-scan, per-document operation. That is
-a decision to make, not a bug to fix — see D3.
-
----
-
-## 6. Decisions we need
-
-| # | Decision | Recommendation |
-| ---: | --- | --- |
-| **D1** | **Are `rex` / `dedup` / `simple-search` at ≥1 day release blockers, or documented known-slow with revised thresholds?** The [§4.2](https://chorus.aws.dev/doc/Wz9MgtrddN1P/PPL-Performance-Load--Use-Case-Test-Plan) gates predate fidelity data. | Documented known-slow with revised gates, plus user-facing guidance. They are inherent costs, not regressions. |
-| **D2** | **File F1–F9 as GitHub issues?** Nine findings currently live only in a Chorus doc. F8 (three unqueryable types) and F6 (bare-text aggregation) are the strongest. | Yes — F8 and F7 first; they are hard failures with clear repros. |
-| **D3** | **Close the correctness gap before or after automating?** | Before. Trend-lining unverified numbers compounds the problem. |
-| **D4** | **Weekly automation and its cost.** The domain runs 12×om2.4xlarge 24/7 for what is currently a ~5 h weekly job. Options: leave it, or snapshot→delete→restore per run (~2 h restore, big saving, adds variability). | Leave the domain up for now; split weekly (light subset ~90 min) from monthly (full wide-range). Revisit cost once cadence is proven. |
-| **D5** | **Reingest scope.** Five sub-decisions in [RESEED-SPEC.md](https://github.com/ahkcs/sql/blob/feature/ppl-perf-suite/docs/dev/bench/perf-suite/RESEED-SPEC.md): load alongside as `mock2-*` (disk is at 17 %, so the old baseline stays queryable for a direct A/B), roll timestamps to "now" (realism vs reproducibility — genuine tension), index granularity, scale, correctness ground truth. | Load alongside; keep fat indices and add a *separate* small daily-granularity set for PIT/fan-out; defer the "now" timestamps decision until the reproducibility trade-off is agreed. |
-| **D6** | **Do we recommend WLM to the customer as a requirement rather than an option?** | Yes. 732× → 1.7× is not a marginal improvement. |
-
----
-
-## 7. Artifacts
+## 4. Artifacts
 
 | What | Where |
 | --- | --- |
